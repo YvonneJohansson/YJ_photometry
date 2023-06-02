@@ -17,12 +17,14 @@ def analyse_this_experiment(experiment_to_process, main_dir):
         saving_folder = main_dir + 'YJ_results\\' + experiment['mouse_id']
         if not os.path.exists(saving_folder):
             os.makedirs(saving_folder)
-
-        session_traces = SessionData(experiment['mouse_id'], experiment['date'], experiment['fiber_side'], experiment['recording_site'], main_dir)
-        filename = experiment['mouse_id'] + '_' + experiment['date'] + '_' + experiment['fiber_side']+ '_' + experiment['recording_site'] + '_aligned_traces.p'
-        save_filename = os.path.join(saving_folder, filename)
-        pickle.dump(session_traces, open(save_filename, "wb"))
-
+        try:
+            session_traces = SessionData(experiment['mouse_id'], experiment['date'], experiment['fiber_side'], experiment['recording_site'], main_dir)
+            filename = experiment['mouse_id'] + '_' + experiment['date'] + '_' + experiment['fiber_side']+ '_' + experiment['recording_site'] + '_aligned_traces.p'
+            save_filename = os.path.join(saving_folder, filename)
+            pickle.dump(session_traces, open(save_filename, "wb"))
+            return session_traces
+        except OSError:
+            print('No preprocessed files found for: ' + experiment['mouse_id'] + '_' + experiment['date'] + '_' + experiment['fiber_side']+ '_' + experiment['recording_site'])
 def get_SessionData(directory, mouse, date, fiber_side, location):
     folder = directory + 'YJ_results\\' + mouse + '\\'
     aligned_filename = folder + mouse + '_' + date + '_' + fiber_side + '_' + location + '_' + 'aligned_traces.p'
@@ -41,6 +43,50 @@ def fiber_side_to_numeric(fiber_side):
     return ipsi_numeric, contra_numeric
 
 
+def getProtocol(session_data):
+    processed_folder = session_data.directory + 'processed_data\\' + session_data.mouse + '\\'
+    restructured_filename = session_data.mouse + '_' + session_data.date + '_' + 'restructured_data.pkl'
+    trial_data = pd.read_pickle(processed_folder + restructured_filename)
+    protocol = ''
+    total_trials = np.max(trial_data['Trial num']) + 1  # trial 0 is the first trial
+    COT_types = len(trial_data['Trial type'].unique())
+    if COT_types > 2:
+        if COT_types == 7:
+            protocol = protocol + 'psychometric; '
+    sound_types = len(trial_data['Sound type'].unique())
+    if sound_types > 1:
+        silent_events = trial_data[trial_data['Sound type'] == 1]
+        sound_events = trial_data[trial_data['Sound type'] == 0]
+        silent_trials = len(silent_events['Trial num'].unique())
+        sound_trials = sound_events['Trial num'].unique()
+        if silent_trials > 0:
+            protocol = protocol + 'silence (' + str("%.1f" % (silent_trials / total_trials * 100)) + '%); '
+
+    if protocol == '':
+        protocol = '2AC'
+    return protocol
+
+
+def getPerformance(session_data):
+    processed_folder = session_data.directory + 'processed_data\\' + session_data.mouse + '\\'
+    restructured_filename = session_data.mouse + '_' + session_data.date + '_' + 'restructured_data.pkl'
+    try:
+        trial_data = pd.read_pickle(processed_folder + restructured_filename)
+        total_trials = np.max(trial_data['Trial num'])+1 #trial 0 is the first trial
+        punishment = trial_data[trial_data['State name']=='Punish']
+        if len(punishment) > 0:
+            wrong_trials = len(punishment['Trial num'].unique())
+            correct_trials = total_trials - wrong_trials
+            performance = correct_trials / total_trials * 100
+        else:
+            correct_trial_data = trial_data[trial_data['First choice correct']==1]
+            correct_trials = len(correct_trial_data['Trial num'].unique())
+            performance = correct_trials / total_trials * 100
+        return performance, total_trials
+    except OSError:
+        print('No trial data found for ' + session_data.mouse + '_' + session_data.date + '_' + session_data.fiber_side + '_' + session_data.recording_site)
+
+
 class SessionData(object):
     def __init__(self, mouse_id, date, fiber_side, recording_site, main_dir):
         self.mouse = mouse_id
@@ -48,6 +94,8 @@ class SessionData(object):
         self.fiber_side = fiber_side
         self.recording_site = recording_site
         self.directory = main_dir
+        self.performance, self.nr_trials = getPerformance(self)
+        self.protocol = getProtocol(self)
         self.choice = None
         self.cue = None
         self.reward = None
@@ -62,6 +110,8 @@ class SessionData(object):
         print('Processing session: ' + self.mouse + '_' + self.date + '_' + self.fiber_side + '_' + self.recording_site + '_reward:')
         self.reward = RewardAlignedData(self, save_traces=True)
         #self.outcome_data = RewardAndNoRewardAlignedData(self, save_traces=save_traces)
+
+
 
 
 class ChoiceAlignedData(object):
@@ -113,7 +163,7 @@ class CueAlignedData(object):
         params = {'state_type_of_interest': 3,
             'outcome': 2,
             #'last_outcome': 0,  # NOT USED CURRENTLY
-            'no_repeats' : 1,
+            'no_repeats' : 0, # the cue is often repeated
             'last_response': 0,
             'align_to' : 'Time start',
             'instance': -1,
@@ -126,18 +176,18 @@ class CueAlignedData(object):
         self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric)
         self.contra_data.get_peaks(save_traces=save_traces)
 
-        params['cue'] = 'high'
-        self.high_cue_data = ZScoredTraces(trial_data, dff, params, 0, 0) # no matter if ipsi or contra, high cue is always 0
-        self.high_cue_data.get_peaks(save_traces=save_traces)
-        self.high_cue_ipsi_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric)
-        self.high_cue_contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric)
-        params['cue'] = 'low'
-        self.low_cue_data = ZScoredTraces(trial_data, dff, params, 0, 0)
-        self.low_cue_data.get_peaks(save_traces=save_traces)
-        self.low_cue_ipsi_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric,
-                                                ipsi_fiber_side_numeric)
-        self.low_cue_contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric,
-                                                  contra_fiber_side_numeric)
+        #params['cue'] = 'high'
+        #self.high_cue_data = ZScoredTraces(trial_data, dff, params, 0, 0) # no matter if ipsi or contra, high cue is always 0
+        #self.high_cue_data.get_peaks(save_traces=save_traces)
+        #self.high_cue_ipsi_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric)
+        #self.high_cue_contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric)
+        #params['cue'] = 'low'
+        #self.low_cue_data = ZScoredTraces(trial_data, dff, params, 0, 0)
+        #self.low_cue_data.get_peaks(save_traces=save_traces)
+        #elf.low_cue_ipsi_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric,
+         #                                       ipsi_fiber_side_numeric)
+        #self.low_cue_contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric,
+        #                                          contra_fiber_side_numeric)
 
 class RewardAlignedData(object):
     def __init__(self, session_data, save_traces=True):
@@ -261,7 +311,7 @@ def get_next_centre_poke(trial_data, events_of_int, last_trial):
         if trial_num == trial_data['Trial num'].values[-1]: # if last trial in session; however iterrows does not include the last trial
             #if last_trial: #FG, if last trial in events of int = last trial in session, if is true for all trials
             next_centre_poke_times[i] = events_of_int['Trial end'].values[i] + 2
-            print('     fct get_next_centre_poke: last trial ' + str(trial_num) + ' time: ' + str(next_centre_poke_times[i]) + ' it did enter the if statement')
+            #print('     fct get_next_centre_poke: last trial ' + str(trial_num) + ' time: ' + str(next_centre_poke_times[i]) + ' it did enter the if statement')
         else:   # YJ, it should go here for all trials but the last one! not the case for FG when last trial is last session trial.
             next_trial_events = trial_data.loc[(trial_data['Trial num'] == trial_num + 1)]
             wait_for_pokes = next_trial_events.loc[(next_trial_events['State type'] == 2)] # wait for pokes
@@ -348,7 +398,7 @@ def find_and_z_score_traces(trial_data, dff, params, norm_window=8, sort=False, 
     # --------------
     # 1) State type (e.g. corresp. State name = CueDelay, WaitforResponse...)
     events_of_int = trial_data.loc[(trial_data['State type'] == params.state)]  # State type = number of state of interest, typically 3 or 5
-    print("n = " + str(len(events_of_int)) + " events of interest")
+    #print("n = " + str(len(events_of_int)) + " events of interest")
     title = title + 'State type = ' + str(params.state) + ';'
     # --------------
     # 2) Response, trials to the left or to the right side
