@@ -3,10 +3,12 @@ from scipy import stats
 import matplotlib.pyplot as plt
 from matplotlib import colors, cm
 from matplotlib.backends.backend_svg import FigureCanvasSVG
+from matplotlib.backends.backend_pdf import PdfPages
 
 from tqdm import tqdm
-import matplotlib
+import matplotlib as mpl
 from scipy.signal import decimate
+
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import math
 from yvonne_basic_functions import *
@@ -91,7 +93,7 @@ def plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_met
     if error_bar_method is not None:
         error_bar_lower, error_bar_upper = calculate_error_bars(mean_trace, traces,
                                                                 error_bar_method=error_bar_method)
-        ax1.fill_between(time_points, error_bar_lower, error_bar_upper, alpha=0.5,
+        ax1.fill_between(time_points, error_bar_lower, error_bar_upper, alpha=1,
                          facecolor='#7FB5B5', linewidth=0)
 
     ax1.axvline(0, color='#808080', linewidth=0.5)
@@ -131,10 +133,10 @@ def plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_met
 
     if white_dot == 'reward':
         ax2.scatter(one_side_data.outcome_times,
-                    np.arange(one_side_data.reaction_times.shape[0]) + 0.5, color='w', s=0.5)
+                    np.arange(one_side_data.reaction_times.shape[0]) + 0.5, color='w', s=0.15)
     else:
         ax2.scatter(one_side_data.reaction_times,
-                    np.arange(one_side_data.reaction_times.shape[0]) + 0.5, color='w', s=0.5)
+                    np.arange(one_side_data.reaction_times.shape[0]) + 0.5, color='w', s=0.15)
 
     # next trial
     ax2.scatter(one_side_data.sorted_next_poke,
@@ -158,11 +160,25 @@ def plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_met
 
 def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=False, x_range=[-2, 3], white_dot='default'):
 
-    fig, axs = plt.subplots(nrows=3, ncols=4, figsize=(11, 8.25))
+    if SessionData.protocol == 'SOR':
+        rows = 6
+        height = 8.25 * 2
+    else:
+        rows = 3
+        height = 8.25
+
+    fig, axs = plt.subplots(nrows=rows, ncols=4, figsize=(11, height)) # width, height
     fig.tight_layout(pad=4)
     #fig.tight_layout(pad=2.1, rect=[0,0,0.05,0])  # 2.1)
     font = {'size': 10}
-    plt.rc('font', **font)
+
+    #plt.rcParams['font', **font]
+    plt.rcParams["pdf.fonttype"] = 42
+    plt.rcParams["ps.fonttype"] = 42
+    #plt.rcParams["svg.fonttype"] = None
+    plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 10
+    #plt.rc('font', **font)
 
     x_range = x_range
 
@@ -224,18 +240,37 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
                                      error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
                                      y_label='Ipsi ', top_label='')
         text = SessionData.mouse + '_' + SessionData.date + '_' + SessionData.recording_site + '_' + \
-               SessionData.fiber_side + ', protocol: ' + SessionData.protocol + 'performance: ' + str("%.2f" % SessionData.performance) + '% in n = ' + str("%.0f" % SessionData.nr_trials) + ' trials'
+               SessionData.fiber_side + ', protocol: ' + SessionData.protocol + SessionData.protocol_info + ', performance: ' + str("%.2f" % SessionData.performance) + '% in n = ' + str("%.0f" % SessionData.nr_trials) + ' trials'
 
         axs[0, 0].text(x_range[0]-2.8, y_range[1]+0.5, text, fontsize=12)
+
+    if SessionData.protocol == 'SOR':
+        for alignement in alignements:
+            if alignement == 'cue':
+                aligned_data = SessionData.SOR_cue
+                row = 3
+            elif alignement == 'movement':
+                aligned_data = SessionData.SOR_choice
+                row = 4
+            elif alignement == 'reward':
+                aligned_data = SessionData.SOR_reward
+                row = 5
+
+            aligned_data.contra_data.params.plot_range = x_range
+
+            contra_heatmap = plot_one_side(aligned_data.contra_data, fig, axs[row, 0], axs[row, 1], y_range, hm_range,
+                                           error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
+                                           y_label='SOR Contra ', top_label=alignement)
+
 
 
 
     return fig
 
 
-def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, error_bar_method='sem', x_range=[-2, 3]):
+def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, error_bar_method='sem', x_range=[-2, 3], minPerformance=75):
 
-    fig, axs = plt.subplots(nrows=len(mice), ncols=4, figsize=(11, 8.25))
+    fig, axs = plt.subplots(nrows=len(mice)+1, ncols=4, figsize=(11, 8.25))
     fig.tight_layout(pad=4)
     # fig.tight_layout(pad=2.1, rect=[0,0,0.05,0])  # 2.1)
     font = {'size': 10}
@@ -261,16 +296,18 @@ def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, err
                 fiber_side = experiment['fiber_side']
                 try:
                     data = get_SessionData(main_directory, mouse, date, fiber_side, location)
-                    print('Next:' + mouse +' '+ date +' '+ location)
+                    print('Next:' + mouse +' '+ date + ' ' + location)
                     if np.max(data.cue.contra_data.mean_trace) > 0.5 or np.max(data.choice.contra_data.mean_trace) > 0.5:
                         try:
-                            if data.performance > 70 and data.protocol == '2AC':
-                                print(' > Plotting: ' + mouse + '_' + location + '_' + date)
+                            if data.performance > minPerformance and data.protocol == '2AC':
+                                print('> Plotting: ' + mouse + '_' + location + '_' + date)
                                 column = locations.index(location)
-                                aligned_traces = data.cue.contra_data
+                                aligned_traces = data.choice.contra_data
+                                print('now: row ' + str(row) + ' column ' + str(column))
                                 ax=axs[row, column]
                                 ax_overlay=axs[row, 2]
-                                plot_avg_sem(aligned_traces, fig, ax, ax_overlay, y_range, error_bar_method='sem', y_label='contra', top_label= mouse + '_' + location,color=color)
+                                plot_avg_sem(aligned_traces, fig, ax, ax_overlay, y_range, error_bar_method='sem', y_label='contra choice', top_label= mouse + '_' + location,color=color)
+
                             else:
                                 print('   >> Not plotting: as ' + str("%.0f" % data.performance) + '% performance in protocol ' + data.protocol + ' from ' + date)
                         except AttributeError:
@@ -292,10 +329,15 @@ def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, err
 # function by YJ to analyse a single session of a single mouse
 
 if __name__ == '__main__':
-    mice = ['TS16'] #,'TS20']
-    dates = ['20230512']
-    #plot = 'SingleSession'
+    mice = ['TS18'] #,'TS20']['TS20','TS21'] #
+    dates = ['20230727','20230731','20230802','20230808','20230810'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
+    recording_site = 'TS'
+    fiber_side = 'right'
+    exclude_protocols = ['psychometric','large','Large']
+
+    # --------------------------------------
     plot = 1
+    # --------------------------------------
 
     all_experiments = get_all_experimental_records()
     main_directory = 'Z:\\users\\Yvonne\\photometry_2AC\\'
@@ -309,18 +351,125 @@ if __name__ == '__main__':
                 recording_site = experiment['recording_site'].values[0]
                 data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)
                 text = mouse + '_' + date + '_' + recording_site + '_' + fiber_side
-                figure = heat_map_and_mean_SingleSession(data, error_bar_method='sem', sort=True, x_range=[-2, 3],
-                                                    white_dot='default')
+                figure = heat_map_and_mean_SingleSession(data, error_bar_method='sem', sort=True, x_range=[-2, 3], white_dot='default')
+
+                #figure = heat_map_and_mean_SingleSession(data, error_bar_method='sem', sort=True, x_range=[-2, 3],
+                 #                                   white_dot='default')
                 canvas = FigureCanvasSVG(figure)
-                canvas.print_svg(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.svg', dpi=600)
+                #canvas.print_svg(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.svg', dpi=600)
                 #plt.savefig(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.png', bbox_inches="tight", dpi=600)
                 #plt.savefig(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.pdf', bbox_inches="tight", dpi=600)
+
+                with PdfPages(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.pdf') as pdf:
+                    pdf.savefig(figure, transparent=True, bbox_inches="tight", dpi=600)
 
                 plt.show()
 
     if plot == 2:
         print(mice)
         locations = ['TS','DMS']
-        figure = CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, error_bar_method='sem', x_range=[-2, 3])
+        figure = CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, error_bar_method='sem', x_range=[-2, 3], minPerformance=60)
         plt.show()
 
+
+    if plot == 3:
+        print('TimeSeries')
+        alignements = ['cue', 'movement', 'reward']
+        p_row = -1
+        nr_rows = len(mice)
+        if nr_rows < 2:
+            nr_rows = nr_rows + 1
+
+        fig, axs = plt.subplots(nrows=nr_rows, ncols=3, figsize=(3 * 4, nr_rows * 4))
+        fig.tight_layout(pad=8)
+
+        for mouse in mice:
+            print('-----------------')
+            print('NOW: ' + mouse)
+
+            experiments = all_experiments[(all_experiments['mouse_id'] == mouse) & (all_experiments['fiber_side'] == fiber_side) &
+                                          (all_experiments['recording_site'] == recording_site) & (all_experiments['include'] != 'no')]
+            #experiments = experiments[~experiments['experiment_notes'].isin(exclude_protocols)]
+            n_exp = len(experiments)
+
+            excl_date = []
+            for excl in exclude_protocols:
+                mask = experiments
+                exclude_experiments = search(mask, excl)
+                try:
+                    excl_date.append(exclude_experiments['date'].values[0])
+                except IndexError:
+                    print('')
+
+            for j in excl_date:
+                experiments = experiments[experiments['date'] != j]
+
+            n_exp = len(experiments)
+            print('Number of experiments: ' + str(n_exp))
+
+            p_row = p_row + 1
+            colors = plt.cm.viridis(np.linspace(0, 1, n_exp))
+
+            experiments.sort_values('date', inplace=True)
+            #experiments.sort_values(by = ['date'], ascending = True)  # start with earliest date, no matter sequence in csv file
+            experiments.reset_index(drop=True, inplace=True)
+            performances = []
+
+            for i, row in experiments.iterrows():
+                date = row['date']
+
+                folder = main_directory + 'YJ_results\\' + mouse + '\\'
+                filename = folder + mouse + '_' + date + '_' + fiber_side + '_' + recording_site + '_' + 'aligned_traces.p'
+                with open(filename, 'rb') as input_file:
+                    SessionData = pickle.load(input_file)
+                    try:
+                        protocol = SessionData.protocol
+                    except AttributeError:
+                        print('     >> No protocol for ' + date)
+                    csv_protocol = all_experiments[(all_experiments['date'] == SessionData.date) & (
+                            all_experiments['mouse_id'] == SessionData.mouse)]['experiment_notes'].values[0]
+                    if protocol != '2AC':
+                        print('       >> Protocol = ' + protocol + ' for ' + mouse + '_' + date + ' while csv: ' + csv_protocol)
+
+                for alignement in alignements:
+                            if alignement == 'cue':
+                                aligned_data = SessionData.cue.contra_data
+                                performances.append(str(i+1) + '. ' + str("%.0f" % SessionData.performance) + '% ') # + SessionData.protocol + ' ' + date)
+                                col = 0
+                            elif alignement == 'movement':
+                                aligned_data = SessionData.choice.contra_data
+                                col = 1
+                            elif alignement == 'reward':
+                                aligned_data = SessionData.reward.contra_data
+                                col = 2
+
+                            #print('i = ' + str(i) + ' p_row = ' + str(p_row) + ' col = ' + str(col))
+
+                            mean_trace = decimate(aligned_data.mean_trace, 10)
+                            time_points = decimate(aligned_data.time_points, 10)
+                            traces = decimate(aligned_data.sorted_traces, 10)
+
+                            axs[p_row][col].plot(time_points, mean_trace, lw=1.5, color=colors[i])
+                            axs[p_row][col].set_xlim(-2, 3)
+                            axs[p_row][col].set_ylim(-1, 2)
+                            axs[p_row][col].set_xlabel('Time (s)')
+                            axs[p_row][col].set_ylabel('z-score')
+                            right = axs[p_row][col].spines["right"]
+                            right.set_visible(False)
+                            top = axs[p_row][col].spines["top"]
+                            top.set_visible(False)
+
+                            box = axs[p_row][col].get_position()
+                            axs[p_row][col].set_position([box.x0, box.y0, box.width * 0.999, box.height])
+                            axs[p_row][col].text(-2, 2.4, alignement, ha='right', va='top', fontsize=10, color='#0000FF')
+                            axs[p_row][2].legend(performances, bbox_to_anchor=(1.1, 0.4), frameon=False, fontsize=8)
+                            #axs[p_row][0].legend(performances, loc="upper left", frameon=False, fontsize=8)
+                            axs[p_row][0].text(-2, 2.8, mouse + ': ' + recording_site + fiber_side + ', n = ' + str(n_exp),
+                                           ha='center', va='center', fontsize=12)
+
+            plt.setp(axs, yticks=[-1, 0, 1, 2], xticks=[-2, 0, 2])
+        plt.show()
+
+        canvas = FigureCanvasSVG(fig)
+        with PdfPages(main_directory + 'YJ_results\\' + 'TimeSeries_' + recording_site + fiber_side + '.pdf') as pdf:
+            pdf.savefig(fig, transparent=True, bbox_inches="tight", dpi=600)

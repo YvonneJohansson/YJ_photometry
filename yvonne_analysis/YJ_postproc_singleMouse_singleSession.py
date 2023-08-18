@@ -14,8 +14,9 @@ main_directory = 'Z:\\users\\Yvonne\\photometry_2AC\\'
 # function by YJ to analyse a single session of a single mouse
 
 if __name__ == '__main__':
-    mice = ['TS16'] # ['TS19','TS20','TS21','TS22']
-    dates = ['20230512'] #,'20230220','20230227','20230307','20230301','20230509'] # '20230511', '20230512', '20230513', '20230510', '20230511','20230512'
+    mice = ['TS18']
+
+    dates = ['20230727','20230731','20230802','20230808','20230810'] # '20230814'] #,'2 # '20230511', '20230512', '20230513', '20230510', '20230511','20230512'
     all_experiments = get_all_experimental_records()
 
     for mouse in mice:
