@@ -160,7 +160,7 @@ def plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_met
 
 def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=False, x_range=[-2, 3], white_dot='default'):
 
-    if SessionData.protocol == 'SOR':
+    if SessionData.protocol == 'SOR' and SessionData.fiber_side == 'right':
         rows = 6
         height = 8.25 * 2
     else:
@@ -244,7 +244,7 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
 
         axs[0, 0].text(x_range[0]-2.8, y_range[1]+0.5, text, fontsize=12)
 
-    if SessionData.protocol == 'SOR':
+    if SessionData.protocol == 'SOR' and SessionData.fiber_side == 'right':
         for alignement in alignements:
             if alignement == 'cue':
                 aligned_data = SessionData.SOR_cue
@@ -329,8 +329,8 @@ def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, err
 # function by YJ to analyse a single session of a single mouse
 
 if __name__ == '__main__':
-    mice = ['TS18'] #,'TS20']['TS20','TS21'] #
-    dates = ['20230727','20230731','20230802','20230808','20230810'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
+    mice = ['TS17'] #,'TS20']['TS20','TS21'] #
+    dates = ['20230821','20230822','20230823'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
     recording_site = 'TS'
     fiber_side = 'right'
     exclude_protocols = ['psychometric','large','Large']
@@ -347,6 +347,7 @@ if __name__ == '__main__':
             for date in dates:
                 experiment = all_experiments[
                     (all_experiments['date'] == date) & (all_experiments['mouse_id'] == mouse)]
+                #print(experiment)
                 fiber_side = experiment['fiber_side'].values[0]
                 recording_site = experiment['recording_site'].values[0]
                 data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)

@@ -180,10 +180,11 @@ class SessionData(object):
         #self.outcome_data = RewardAndNoRewardAlignedData(self, save_traces=save_traces)
 
         if self.protocol == 'SOR':
-            #self.return_data = ReturnAlignedData(self, save_traces=True)
-            self.SOR_choice = SORChoiceAlignedData(self, save_traces=True)
-            self.SOR_cue = SORCueAlignedData(self, save_traces=True)         # correct later!!!
-            self.SOR_reward = SORRewardAlignedData(self, save_traces=True)
+            if self.fiber_side == 'right':
+                #self.return_data = ReturnAlignedData(self, save_traces=True)
+                self.SOR_choice = SORChoiceAlignedData(self, save_traces=True)
+                self.SOR_cue = SORCueAlignedData(self, save_traces=True)         # correct later!!!
+                self.SOR_reward = SORRewardAlignedData(self, save_traces=True)
 class ChoiceAlignedData(object):
     """
     Traces for standard analysis
