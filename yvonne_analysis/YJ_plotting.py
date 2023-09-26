@@ -11,6 +11,7 @@ from scipy.signal import decimate
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import math
+import numpy as np
 from yvonne_basic_functions import *
 
 
@@ -79,7 +80,24 @@ def plot_avg_sem(aligned_traces, fig, ax, ax_overlay, y_range, error_bar_method=
     top.set_visible(False)
 
 
+def add_plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_method='sem', sel_color = 'default'):
+    # Trace average and sem:
+    mean_trace = decimate(one_side_data.mean_trace, 10)
+    time_points = decimate(one_side_data.time_points, 10)
+    traces = decimate(one_side_data.sorted_traces, 10)
 
+    if traces.shape[0] > 5: # plotting only works if there is more than one trace, >5 because it looks like crap otherwise
+        if sel_color == 'default':
+            sel_color = '#3F888F'
+
+        ax1.plot(time_points, mean_trace, lw=1.5, color=sel_color)  # default: '#3F888F'
+
+        if error_bar_method is not None:
+            error_bar_lower, error_bar_upper = calculate_error_bars(mean_trace, traces,
+                                                                error_bar_method=error_bar_method)
+            ax1.fill_between(time_points, error_bar_lower, error_bar_upper, alpha=0.3,
+                         facecolor=sel_color, linewidth=0) # default: '#7FB5B5'
+    return ax1, ax2
 
 
 def plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_method='sem', sort=False,
@@ -88,74 +106,90 @@ def plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_met
     mean_trace = decimate(one_side_data.mean_trace, 10)
     time_points = decimate(one_side_data.time_points, 10)
     traces = decimate(one_side_data.sorted_traces, 10)
-    ax1.plot(time_points, mean_trace, lw=1.5, color='#3F888F')
 
-    if error_bar_method is not None:
-        error_bar_lower, error_bar_upper = calculate_error_bars(mean_trace, traces,
+    if traces.shape[0] > 1: # plotting only works if there is more than one trace
+        ax1.plot(time_points, mean_trace, lw=1.5, color='#3F888F')
+
+        if error_bar_method is not None:
+            error_bar_lower, error_bar_upper = calculate_error_bars(mean_trace, traces,
                                                                 error_bar_method=error_bar_method)
-        ax1.fill_between(time_points, error_bar_lower, error_bar_upper, alpha=1,
+            ax1.fill_between(time_points, error_bar_lower, error_bar_upper, alpha=1,
                          facecolor='#7FB5B5', linewidth=0)
 
-    ax1.axvline(0, color='#808080', linewidth=0.5)
-    ax1.set_xlim(one_side_data.params.plot_range)
-    ax1.set_ylim(y_range)
-    ax1.yaxis.set_ticks(np.arange(y_range[0], y_range[1] + 1, 1))
-    ax1.set_xlabel('Time (s)')
-    ax1.set_ylabel(y_label + 'z-score')
-    ax1.set_title(top_label, x=-0.5, y=np.mean(y_range), fontsize=14, rotation="vertical",
-                  color='#3F888F') #y=np.mean(y_range) va="center"
-    right_axis = ax1.spines["right"]
-    right_axis.set_visible(False)
-    top = ax1.spines["top"]
-    top.set_visible(False)
+        y_total = y_range[1] - y_range[0]
+        #print('y_total:' + str(y_total) + ', set: ' + str(np.mean(y_range) - 1 / 4 * y_total))
+        ax1.axvline(0, color='#808080', linewidth=0.5)
+        ax1.set_xlim(one_side_data.params.plot_range)
+        #ax1.set_ylim(-1,1.5)
+        ax1.set_ylim(y_range)
+        ax1.yaxis.set_ticks(np.arange(y_range[0], y_range[1] + 1, 1))
+        ax1.set_xlabel('Time (s)')
+        yaxis = ax1.set_ylabel(y_label + 'z-score')
 
-    # ----------------------------------------------------------
-    # Heatmap:
+        #title = ax1.set_title(top_label, fontsize=14, color='#3F888F')
+        #offset = np.array([0, 0.0])
+        #title.set_position(yaxis.get_position() + offset)
+        #title.set_rotation("vertical")
 
-    if white_dot == 'reward':
-        white_dot_point = one_side_data.outcome_times
-    else:
-        white_dot_point = one_side_data.reaction_times
+        ax1.set_title(top_label, x=-0.5, y=0.2*np.mean(y_range), fontsize=14, rotation="vertical",
+                     color='#3F888F') #y=np.mean(y_range) va="center"
+        right_axis = ax1.spines["right"]
+        right_axis.set_visible(False)
+        top = ax1.spines["top"]
+        top.set_visible(False)
 
-    if sort:
-        arr1inds = white_dot_point.argsort()
-        one_side_data.reaction_times = one_side_data.reaction_times[arr1inds[::-1]]
-        one_side_data.outcome_times = one_side_data.outcome_times[arr1inds[::-1]]
-        one_side_data.sorted_traces = one_side_data.sorted_traces[arr1inds[::-1]]
-        one_side_data.sorted_next_poke = one_side_data.sorted_next_poke[arr1inds[::-1]]
+        # ----------------------------------------------------------
+        # Heatmap:
 
-    # nr. trials to show: one_side_data.sorted_traces.shape[0]
+        if white_dot == 'reward':
+            white_dot_point = one_side_data.outcome_times
+        else:
+            white_dot_point = one_side_data.reaction_times
 
-    heat_im = ax2.imshow(one_side_data.sorted_traces, aspect='auto',
-                         extent=[-10, 10, one_side_data.sorted_traces.shape[0], 0], cmap='viridis')
 
-    ax2.axvline(0, color='w', linewidth=1)
 
-    if white_dot == 'reward':
-        ax2.scatter(one_side_data.outcome_times,
-                    np.arange(one_side_data.reaction_times.shape[0]) + 0.5, color='w', s=0.15)
-    else:
-        ax2.scatter(one_side_data.reaction_times,
-                    np.arange(one_side_data.reaction_times.shape[0]) + 0.5, color='w', s=0.15)
+        if sort:
+            arr1inds = white_dot_point.argsort()
+            one_side_data.reaction_times = one_side_data.reaction_times[arr1inds[::-1]]
+            one_side_data.outcome_times = one_side_data.outcome_times[arr1inds[::-1]]
+            one_side_data.sorted_traces = one_side_data.sorted_traces[arr1inds[::-1]]
+            one_side_data.sorted_next_poke = one_side_data.sorted_next_poke[arr1inds[::-1]]
 
-    # next trial
-    ax2.scatter(one_side_data.sorted_next_poke,
-                np.arange(one_side_data.sorted_next_poke.shape[0]) + 0.5, color='b', s=0.5)
+        # nr. trials to show: one_side_data.sorted_traces.shape[0]
 
-    ax2.tick_params(labelsize=10)
-    ax2.set_xlim(one_side_data.params.plot_range)
-    ax2.set_ylim([one_side_data.sorted_traces.shape[0], 0])
-    ax2.set_xlabel('Time (s)')
-    ax2.set_ylabel('Trial (sorted)')
+        heat_im = ax2.imshow(one_side_data.sorted_traces, aspect='auto',
+                             extent=[-10, 10, one_side_data.sorted_traces.shape[0], 0], cmap='viridis')
 
-    if y_range:
-        norm = colors.Normalize(vmin=hm_range[0], vmax=hm_range[1])
-        heat_im.set_norm(norm)
+        ax2.axvline(0, color='w', linewidth=1)
 
-    cb = fig.colorbar(heat_im, ax=ax2, orientation="vertical", fraction=0.1)
-    cb.ax.set_title('z-score', fontsize=9, pad=4)
+        if white_dot == 'reward':
+            ax2.scatter(one_side_data.outcome_times,
+                        np.arange(one_side_data.reaction_times.shape[0]) + 0.5, color='w', s=0.15)
+        elif white_dot == None:
+            pass
+        else:
+            ax2.scatter(one_side_data.reaction_times,
+                        np.arange(one_side_data.reaction_times.shape[0]) + 0.5, color='w', s=0.15)
 
-    return heat_im
+        # next trial
+        if white_dot is not None: #RTC has no sorted next poke
+            ax2.scatter(one_side_data.sorted_next_poke,
+                    np.arange(one_side_data.sorted_next_poke.shape[0]) + 0.5, color='b', s=0.5)
+
+        ax2.tick_params(labelsize=10)
+        ax2.set_xlim(one_side_data.params.plot_range)
+        ax2.set_ylim([one_side_data.sorted_traces.shape[0], 0])
+        ax2.set_xlabel('Time (s)')
+        ax2.set_ylabel('Trial (sorted)')
+
+        if y_range:
+            norm = colors.Normalize(vmin=hm_range[0], vmax=hm_range[1])
+            heat_im.set_norm(norm)
+
+        cb = fig.colorbar(heat_im, ax=ax2, orientation="vertical", fraction=0.1)
+        cb.ax.set_title('z-score', fontsize=9, pad=4)
+
+        return heat_im
 
 
 def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=False, x_range=[-2, 3], white_dot='default'):
@@ -167,7 +201,8 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
         rows = 3
         height = 8.25
 
-    fig, axs = plt.subplots(nrows=rows, ncols=4, figsize=(11, height)) # width, height
+    fig, axs = plt.subplots(nrows=rows, ncols=4, figsize=(10, height))  # width, height
+    #fig, axs = plt.subplots(nrows=rows, ncols=4, figsize=(11, height)) # width, height
     fig.tight_layout(pad=4)
     #fig.tight_layout(pad=2.1, rect=[0,0,0.05,0])  # 2.1)
     font = {'size': 10}
@@ -233,12 +268,36 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
         aligned_data.ipsi_data.params.plot_range = x_range
         aligned_data.contra_data.params.plot_range = x_range
 
+        if alignement == 'reward':
+            add_incorrect = True
+            legend_text = []
+            if data.protocol == 'LRO' or data.protocol == 'LargeRewards':
+                contra_LRO_traces, legend = add_plot_one_side(SessionData.reward.contra_data_LR, fig, axs[row, 0], axs[row, 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#e377c2')
+                ipsi_LRO_traces, legend = add_plot_one_side(SessionData.reward.ipsi_data_LR, fig, axs[row, 2], axs[row, 3], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#e377c2')
+                legend_text.append('LR')
+                add_incorrect = False
+            if data.protocol == 'LRO' or data.protocol == 'Omissions':
+                contra_LRO_traces, legend = add_plot_one_side(SessionData.reward.contra_data_O, fig, axs[row, 0], axs[row, 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#9467bd')
+                ipsi_LRO_traces, legend = add_plot_one_side(SessionData.reward.ipsi_data_O, fig, axs[row, 2], axs[row, 3], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#9467bd')
+                add_incorrect = False
+                legend_text.append('O')
+            if add_incorrect:
+                contra_incorrect, legend = add_plot_one_side(SessionData.reward.contra_data_incorrect, fig, axs[row, 0], axs[row, 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#DC143C')
+                ipsi_incorrect, legend = add_plot_one_side(SessionData.reward.ipsi_data_incorrect, fig, axs[row, 2], axs[row, 3], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#DC143C')
+                legend_text.append('incorrect')
+            axs[row,0].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
+
+
         contra_heatmap = plot_one_side(aligned_data.contra_data, fig, axs[row, 0], axs[row, 1], y_range, hm_range,
                                        error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
                                        y_label='Contra ', top_label=alignement)
         ipsi_heatmap = plot_one_side(aligned_data.ipsi_data, fig, axs[row, 2], axs[row, 3], y_range, hm_range,
                                      error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
                                      y_label='Ipsi ', top_label='')
+
+
+
+
         text = SessionData.mouse + '_' + SessionData.date + '_' + SessionData.recording_site + '_' + \
                SessionData.fiber_side + ', protocol: ' + SessionData.protocol + SessionData.protocol_info + ', performance: ' + str("%.2f" % SessionData.performance) + '% in n = ' + str("%.0f" % SessionData.nr_trials) + ' trials'
 
@@ -262,8 +321,52 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
                                            error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
                                            y_label='SOR Contra ', top_label=alignement)
 
+    return fig
 
 
+def heat_map_and_mean_SingleSession_RTC(Session_data, RTC_trial_data, RTC_df, error_bar_method='sem', sort=True, x_range=[-2, 3], white_dot='default'):
+
+    rows = 2
+    height = 5.5
+
+    fig, axs = plt.subplots(nrows=rows, ncols=2, figsize=(5.5, height))  # width, height
+    fig.tight_layout(pad=4)
+    font = {'size': 10}
+    plt.rcParams["pdf.fonttype"] = 42
+    plt.rcParams["ps.fonttype"] = 42
+    plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.size"] = 10
+
+    alignement = 'movement'
+    data = Session_data
+    aligned_data = data.choice.contra_data
+    aligned_data.params.plot_range = x_range
+
+    ylim_min = math.floor(np.min(aligned_data.mean_trace))
+    ylim_max = math.ceil(np.max(aligned_data.mean_trace))
+    hm_max = np.max(aligned_data.sorted_traces)
+    hm_min = np.min(aligned_data.sorted_traces)
+    y_range = (ylim_min, ylim_max)
+    hm_range = (hm_min, hm_max)
+    aligned_data.params.plot_range = x_range
+
+    # movement response in preceding session:
+    contra_heatmap = plot_one_side(aligned_data, fig, axs[0, 0], axs[0, 1], y_range, hm_range,
+                                   error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
+                                   y_label='Contra ', top_label=alignement)
+
+    # Random_Tone_Clouds:
+    RTC_data = ZScoredTraces_RTC(RTC_trial_data, RTC_df, x_range)
+
+    RTC_heatmap = plot_one_side(RTC_data, fig, axs[1, 0], axs[1, 1], y_range, hm_range,
+                                   error_bar_method=error_bar_method, sort=False, white_dot=None,
+                                   y_label='', top_label='RTC')
+
+
+    text = data.mouse + '_' + data.date + '_' + data.recording_site + '_' + \
+               data.fiber_side + ', protocol: ' + data.protocol + data.protocol_info + ', performance: ' + str("%.2f" % data.performance) + '% in n = ' + str("%.0f" % data.nr_trials) + ' trials vs RTC'
+
+    axs[0, 0].text(x_range[0]-2.8, y_range[1]+0.5, text, fontsize=8)
 
     return fig
 
@@ -329,8 +432,8 @@ def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, err
 # function by YJ to analyse a single session of a single mouse
 
 if __name__ == '__main__':
-    mice = ['TS17'] #,'TS20']['TS20','TS21'] #
-    dates = ['20230821','20230822','20230823'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
+    mice = ['TS27'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
+    dates = ['20230920'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
     recording_site = 'TS'
     fiber_side = 'right'
     exclude_protocols = ['psychometric','large','Large']
@@ -367,13 +470,49 @@ if __name__ == '__main__':
                 plt.show()
 
     if plot == 2:
+        print('Random_Tone_Clouds')
+        protocol = 'Random_Tone_Clouds'
+        for mouse in mice:
+            trial_data_path = main_directory + 'processed_data\\' + mouse + '\\'
+            search_trial_data = '_RTC_restructured_data.pkl'
+            search_df_data = '_RTC_smoothed_signal.npy'
+            files_in_path = os.listdir(trial_data_path)
+            trial_data_files = [file for file in files_in_path if search_trial_data in file]
+            df_data_files = [file for file in files_in_path if search_df_data in file]
+
+            nr_files = len(trial_data_files)
+            for i in range(0,nr_files):
+                trial_data_name = trial_data_files[i]
+                trial_data = pd.read_pickle(trial_data_path + trial_data_name)
+                df_name = df_data_files[i]
+                df =np.load(trial_data_path + df_name)
+
+                date = df_data_files[i].split('_')[1]
+                # get movement signal from same day session:
+                experiment = all_experiments[
+                    (all_experiments['date'] == date) & (all_experiments['mouse_id'] == mouse)]
+                fiber_side = experiment['fiber_side'].values[0]
+                recording_site = experiment['recording_site'].values[0]
+                data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)
+
+                print(mouse + '_' + date + '_' + data.protocol + '_&_Random_Tone_Clouds')
+                figure = heat_map_and_mean_SingleSession_RTC(data, trial_data, df, error_bar_method='sem', sort=True, x_range=[-2, 3], white_dot='default')
+                canvas = FigureCanvasSVG(figure)
+                text = mouse + '_' + date + '_' + recording_site + '_' + fiber_side + '_RTC_vs_' + data.protocol
+                with PdfPages(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.pdf') as pdf:
+                    pdf.savefig(figure, transparent=True, bbox_inches="tight", dpi=600)
+
+                plt.show()
+
+
+    if plot == 3:
         print(mice)
         locations = ['TS','DMS']
         figure = CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, error_bar_method='sem', x_range=[-2, 3], minPerformance=60)
         plt.show()
 
 
-    if plot == 3:
+    if plot == 4:
         print('TimeSeries')
         alignements = ['cue', 'movement', 'reward']
         p_row = -1
