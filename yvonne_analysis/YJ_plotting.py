@@ -4,9 +4,10 @@ import matplotlib.pyplot as plt
 from matplotlib import colors, cm
 from matplotlib.backends.backend_svg import FigureCanvasSVG
 from matplotlib.backends.backend_pdf import PdfPages
-
+import matplotlib.font_manager as fm
 from tqdm import tqdm
 import matplotlib as mpl
+#import cairocffi as cairo
 from scipy.signal import decimate
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -207,13 +208,22 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
     #fig.tight_layout(pad=2.1, rect=[0,0,0.05,0])  # 2.1)
     font = {'size': 10}
 
-    #plt.rcParams['font', **font]
-    plt.rcParams["pdf.fonttype"] = 42
-    plt.rcParams["ps.fonttype"] = 42
-    #plt.rcParams["svg.fonttype"] = None
-    plt.rcParams["font.family"] = "Arial"
-    plt.rcParams["font.size"] = 10
-    #plt.rc('font', **font)
+    # vorher:
+    #plt.rcParams["pdf.fonttype"] = 42
+    #plt.rcParams["ps.fonttype"] = 42
+    #plt.rcParams["font.family"] = "Arial"
+    #plt.rcParams["font.size"] = 10
+
+    # neu:
+
+    plt.rc('font', family='Arial', size=12)
+    plt.rcParams.update({'font.size': 12})
+    #mpl.use('cairo')
+        # plt.rcParams['figure.figsize'] = [10, 5]
+         #   import matplotlib.font_manager as fm
+        # font = fm.FontProperties(family = 'Arial', size = 12)
+        # später: plt.title('xxx', fontproperties = font)
+
 
     x_range = x_range
 
@@ -238,6 +248,11 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
         y_minmax.append(np.max(aligned_data.ipsi_data.mean_trace))
         y_minmax.append(np.min(aligned_data.contra_data.mean_trace))
         y_minmax.append(np.max(aligned_data.contra_data.mean_trace))
+
+        if data.protocol == 'LRO' or data.protocol == 'LargeRewards':
+            y_minmax.append(np.max(SessionData.reward.contra_data_LR.mean_trace))
+        if data.protocol == 'LRO' or data.protocol == 'Omissions':
+            y_minmax.append(np.min(SessionData.reward.contra_data_O.mean_trace))
 
         hm_minmax.append(np.min(aligned_data.ipsi_data.sorted_traces))
         hm_minmax.append(np.max(aligned_data.ipsi_data.sorted_traces))
@@ -321,6 +336,14 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
                                            error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
                                            y_label='SOR Contra ', top_label=alignement)
 
+            if alignement == 'reward':
+                contra_incorrect, legend = add_plot_one_side(SessionData.reward.contra_data_incorrect, fig, axs[row, 0],
+                                                             axs[row, 0], y_range, hm_range,
+                                                             error_bar_method=error_bar_method, sel_color='#DC143C')
+                legend_text.append('incorrect')
+                axs[row, 0].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
+
+
     return fig
 
 
@@ -339,7 +362,11 @@ def heat_map_and_mean_SingleSession_RTC(Session_data, RTC_trial_data, RTC_df, er
 
     alignement = 'movement'
     data = Session_data
-    aligned_data = data.choice.contra_data
+    if data.protocol == 'SOR':
+        aligned_data = data.SOR_choice.contra_data
+    else:
+        aligned_data = data.choice.contra_data
+
     aligned_data.params.plot_range = x_range
 
     ylim_min = math.floor(np.min(aligned_data.mean_trace))
@@ -432,14 +459,14 @@ def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, err
 # function by YJ to analyse a single session of a single mouse
 
 if __name__ == '__main__':
-    mice = ['TS27'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
-    dates = ['20230920'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
+    mice = ['TS5'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
+    dates = ['20230227']# ['20230922'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
     recording_site = 'TS'
     fiber_side = 'right'
     exclude_protocols = ['psychometric','large','Large']
 
     # --------------------------------------
-    plot = 1
+    plot = 2
     # --------------------------------------
 
     all_experiments = get_all_experimental_records()
@@ -454,18 +481,19 @@ if __name__ == '__main__':
                 fiber_side = experiment['fiber_side'].values[0]
                 recording_site = experiment['recording_site'].values[0]
                 data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)
-                text = mouse + '_' + date + '_' + recording_site + '_' + fiber_side
+                text = mouse + '_' + date + '_' + recording_site + '_' + fiber_side + '_' + data.protocol
                 figure = heat_map_and_mean_SingleSession(data, error_bar_method='sem', sort=True, x_range=[-2, 3], white_dot='default')
 
                 #figure = heat_map_and_mean_SingleSession(data, error_bar_method='sem', sort=True, x_range=[-2, 3],
                  #                                   white_dot='default')
-                canvas = FigureCanvasSVG(figure)
+                #canvas = FigureCanvasSVG(figure)
                 #canvas.print_svg(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.svg', dpi=600)
                 #plt.savefig(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.png', bbox_inches="tight", dpi=600)
                 #plt.savefig(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.pdf', bbox_inches="tight", dpi=600)
 
-                with PdfPages(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.pdf') as pdf:
-                    pdf.savefig(figure, transparent=True, bbox_inches="tight", dpi=600)
+                plt.savefig(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.pdf', transparent=True, dpi=300)
+                #with PdfPages(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.pdf') as pdf:
+                 #   pdf.savefig(figure, transparent=True, bbox_inches="tight", dpi=600)
 
                 plt.show()
 

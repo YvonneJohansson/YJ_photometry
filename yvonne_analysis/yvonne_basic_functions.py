@@ -69,13 +69,18 @@ def getNonSORtrials(trial_data):
             trial_data_2AC = trial_data_2AC[trial_data_2AC['Trial num'] != trial_all]
     return trial_data_2AC
 
+def getNonPsychotrials(trial_data):
+    for sound_number in [2, 3, 4, 5, 6]:
+        trial_data = trial_data[trial_data['Trial type'] != sound_number]   # Trial type == 1 or 7 == classic high and low frequency
+    return trial_data
+
 def getLargeRewardtrials(trial_data):
     LR_trial_numbers = trial_data[(trial_data['State type']== 12) | (trial_data['State type']== 13)]['Trial num'].values # 13 = RightLargeReward, 12 = LeftLargeReward
     LR_trials = trial_data[trial_data['Trial num'].isin(LR_trial_numbers)]
     return(LR_trials)
 
 def getOmissiontrials(trial_data):
-    O_trial_numbers = trial_data[(trial_data['State type']== 10) & trial_data['State name']=='Omission']['Trial num'].values # 10 = Omission
+    O_trial_numbers = trial_data[(trial_data['State type']== 10) & (trial_data['State name']=='Omission')]['Trial num'].values # 10 = Omission
     # NOTE: FG coded that state type 10 is Omission or ReturnCuePlay depending on the protocol
     O_trials = trial_data[trial_data['Trial num'].isin(O_trial_numbers)]
     return(O_trials)
@@ -84,7 +89,7 @@ def getOmissiontrials(trial_data):
 def getNonLROtrials(trial_data):
     LR_trial_numbers = trial_data[(trial_data['State type'] == 12) | (trial_data['State type'] == 13)][
         'Trial num'].values  # 13 = RightLargeReward, 12 = LeftLargeReward
-    O_trial_numbers = trial_data[(trial_data['State type'] == 10) & trial_data['State name'] == 'Omission']['Trial num'].values  # 10 = Omission or REturnCuePlay
+    O_trial_numbers = trial_data[(trial_data['State type'] == 10) & (trial_data['State name'] == 'Omission')]['Trial num'].values  # 10 = Omission or REturnCuePlay
     LRO_trial_numbers = np.concatenate((LR_trial_numbers, O_trial_numbers))
     #NonLRO_trial_numbers = trial_data[~trial_data['Trial num'].isin(LRO_trial_numbers)]['Trial num'].values
     NonLRO_trial_data = trial_data
@@ -274,15 +279,17 @@ class ChoiceAlignedData(object):
             'plot_range': [-6, 6],
             'first_choice_correct': 2, # doesnt matter
             'SOR': 0,   # 0 = nonSOR; 2 = doesnt matter, 1 = SOR
+            'psycho': 0,  # only Trial type 1 and 7 (no intermediate values, psycho sounds)
             'LRO': 0, # 1 = nonLRO; else doesn't matter
             'LargeRewards': 0, # 1 = LR
             'Omissions': 0, # 1 = Omission
             'cue': None}
 
-        self.ipsi_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric)
-        self.ipsi_data.get_peaks(save_traces=save_traces)
 
-        self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric)
+        self.ipsi_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric, curr_run='')
+        self.ipsi_data.get_peaks(save_traces=save_traces)
+        curr_run = 'choice aligned'
+        self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
         self.contra_data.get_peaks(save_traces=save_traces)
 
 
@@ -308,14 +315,17 @@ class CueAlignedData(object):
             'plot_range': [-6, 6],
             'first_choice_correct': 2, # 2 doesn't matter; 1 = first choice correct; 0 first choice wrong; -1 only 1st choice incorrect, maybe later correct
             'SOR': 0, # nonSOR
+            'psycho': 0,  # only Trial type 1 and 7 (no intermediate values, psycho sounds)
             'LargeRewards': 0,
             'Omissions': 0,
             'LRO': 0,
             'cue': None}
 
-        self.ipsi_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric)
+
+        self.ipsi_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric, curr_run='')
         self.ipsi_data.get_peaks(save_traces=save_traces)
-        self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric)
+        curr_run = 'cue aligned'
+        self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
         self.contra_data.get_peaks(save_traces=save_traces)
 
         #params['cue'] = 'high'
@@ -353,13 +363,15 @@ class RewardAlignedData(object):
                   'plot_range': [-6, 6],
                   'first_choice_correct': 1,
                   'SOR': 0,
+                  'psycho': 0,  # only Trial type 1 and 7 (no intermediate values, psycho sounds)
                   'LargeRewards': 0,
                   'Omissions': 0,
                   'LRO': 1,     #1 = exclude LRO = large reward Omissions: >> separate those trials from regular rewards at all times.
                   'cue': 'None'}
 
-        self.ipsi_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric)
-        self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric)
+        curr_run = 'reward aligned'
+        self.ipsi_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric, curr_run='')
+        self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
 
         params = {'state_type_of_interest': 5,
                   'outcome': 2, #0    # trial outcome = 0 means incorrect; 1 = correct; 2 = doesn't matter
@@ -371,35 +383,39 @@ class RewardAlignedData(object):
                   'plot_range': [-6, 6],
                   'first_choice_correct': 0, #0 , 2 = it doesn't matter, 1 = correct YJ!! (FG used 0 as it doesnt matter!!)
                   'SOR': 0,
+                  'psycho': 0,  # only Trial type 1 and 7 (no intermediate values, psycho sounds)
                   'LargeRewards': 0,
                   'Omissions': 0,
                   'LRO': 1,
                   # exclude LRO = large reward Omissions: >> separate those trials from regular rewards at all times.
                   'cue': 'None'}
-        self.ipsi_data_incorrect = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, 0) # now it doesn't matter if the 'first choice' (= first response left or right) is on the correct side or not!
-        self.contra_data_incorrect = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, 0)
+        curr_run = 'reward aligned_incorrect'
+        self.ipsi_data_incorrect = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, 0, curr_run='') # now it doesn't matter if the 'first choice' (= first response left or right) is on the correct side or not!
+        self.contra_data_incorrect = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, 0, curr_run)
 
         if session_data.protocol == 'LargeRewards' or session_data.protocol == 'Omissions' or session_data.protocol == 'LRO':
 
             if session_data.protocol == 'LargeRewards' or session_data.protocol == 'LRO':
                 # Large Rewards:
                 params = {'state_type_of_interest': 5,
-                      'outcome': 1,
-                      # 'last_outcome': 0,  # NOT USED CURRENTLY
-                      'no_repeats': 0,
-                      'last_response': 0,
-                      'align_to': 'Time end',
-                      'instance': -1,
-                      'plot_range': [-6, 6],
-                      'first_choice_correct': 1,
-                      'SOR': 0,
-                      'LRO': 0,
-                      'LargeRewards': 1,
-                      'Omissions': 0,
-                      'cue': 'None'}
+                          'outcome': 1,
+                           # 'last_outcome': 0,  # NOT USED CURRENTLY
+                          'no_repeats': 0,
+                          'last_response': 0,
+                          'align_to': 'Time end',
+                          'instance': -1,
+                          'plot_range': [-6, 6],
+                          'first_choice_correct': 1,
+                          'SOR': 0,
+                          'psycho': 0,  # only Trial type 1 and 7 (no intermediate values, psycho sounds)
+                          'LRO': 0,
+                          'LargeRewards': 1,
+                          'Omissions': 0,
+                          'cue': 'None'}
 
-                self.ipsi_data_LR = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric)
-                self.contra_data_LR = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric)
+                curr_run = 'LRO / LargeRewards'
+                self.ipsi_data_LR = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric, curr_run='')
+                self.contra_data_LR = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
 
             if session_data.protocol == 'Omissions' or session_data.protocol == 'LRO':
                 # Omissions:
@@ -413,13 +429,15 @@ class RewardAlignedData(object):
                       'plot_range': [-6, 6],
                       'first_choice_correct': 1,
                       'SOR': 0,
+                      'psycho': 0,  # only Trial type 1 and 7 (no intermediate values, psycho sounds)
                       'LRO': 0,
                       'LargeRewards': 0,
                       'Omissions': 1,
                       'cue': 'None'}
 
-                self.ipsi_data_O = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric)
-                self.contra_data_O = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric)
+                curr_run = 'LRO / Omissions'
+                self.ipsi_data_O = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric, curr_run='')
+                self.contra_data_O = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
 
 class SORChoiceAlignedData(object):
     """
@@ -446,12 +464,14 @@ class SORChoiceAlignedData(object):
             'plot_range': [-6, 6],
             'first_choice_correct': 2,
             'SOR': 1,
+            'psycho': 0,
             'LRO': 0,
             'LargeRewards': 0,
             'Omissions': 0,
             'cue': None}
 
-        self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric)
+        curr_run = 'SOR choice aligned'
+        self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
         self.contra_data.get_peaks(save_traces=save_traces)
 
 class SORCueAlignedData(object):
@@ -479,12 +499,14 @@ class SORCueAlignedData(object):
             'plot_range': [-6, 6],
             'first_choice_correct': 2,
             'SOR': 2,   # 2 = doesn't matter, 1 = SOR trials, 2 = 2AC trials
+            'psycho': 0,
             'LRO': 0,
             'LargeRewards': 0,
             'Omissions': 0,
             'cue': None}
 
-        self.contra_data = ZScoredTraces(trial_data, dff, params, 0, 0) # the cue happens on the trial preceding the SOR trial, hence the side of that trial doesn't matter at all
+        curr_run = 'SOR cue aligned'
+        self.contra_data = ZScoredTraces(trial_data, dff, params, 0, 0, curr_run) # the cue happens on the trial preceding the SOR trial, hence the side of that trial doesn't matter at all
         #self.contra_data.get_peaks(save_traces=save_traces)
 
 class SORRewardAlignedData(object):
@@ -508,12 +530,16 @@ class SORRewardAlignedData(object):
                   'plot_range': [-6, 6],
                   'first_choice_correct': 1,
                   'SOR': 1,
+                  'psycho': 0,
                   'LRO': 0,
                   'LargeRewards': 0,
                   'Omissions': 0,
                   'cue': 'None'}
 
-        self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric)
+        curr_run = 'SOR reward aligned'
+        self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
+
+
 
 
 class ZScoredTraces_RTC(object):
@@ -540,11 +566,11 @@ class RTC_params(object):
 
 
 class ZScoredTraces(object):
-    def __init__(self, trial_data, dff, params, response, first_choice):
+    def __init__(self, trial_data, dff, params, response, first_choice, curr_run):
         self.trial_peaks = None
         self.params = HeatMapParams(params, response, first_choice) # 1) params, 2) response (= L vs R corresp. to ipsi vs contra), 3) first_choice == X?? first response?
         self.time_points, self.mean_trace, self.sorted_traces, self.reaction_times, self.state_name, self.title, self.sorted_next_poke, self.trial_nums, self.event_times, self.outcome_times = find_and_z_score_traces(
-            trial_data, dff, self.params, sort=False)
+            trial_data, dff, self.params, curr_run, sort=False)
     def get_peaks(self, save_traces=True):
         if self.params.align_to == 'Time start':
             other_time_point = self.outcome_times   #outcome time is the time of reward or punsihment
@@ -619,6 +645,7 @@ class HeatMapParams(object):
         self.first_choice = first_choice
         self.cue = params['cue']
         self.SOR = params['SOR']
+        self.psycho = params['psycho']
         self.LRO = params['LRO']
         self.LR = params['LargeRewards']
         self.O = params['Omissions']
@@ -732,7 +759,7 @@ def get_photometry_around_event(all_trial_event_times, demodulated_trace, pre_wi
     return event_photo_traces
 
 
-def find_and_z_score_traces(trial_data, dff, params, norm_window=8, sort=False, get_photometry_data=True):
+def find_and_z_score_traces(trial_data, dff, params, curr_run, norm_window=8, sort=False, get_photometry_data=True):
     response_names = ['both left and right', 'left', 'right']
     outcome_names = ['incorrect', 'correct', 'both correct and incorrect']
     title = ''
@@ -752,9 +779,16 @@ def find_and_z_score_traces(trial_data, dff, params, norm_window=8, sort=False, 
     elif params.SOR == 2:
         events_of_int = trial_data
 
-    if params.state == 5:
-        if params.align_to == 'Time end':
-            print('1)   SOR selection: # trials: ' + str(events_of_int.shape[0]))
+    curr_nr_trials = events_of_int.shape[0]
+
+    if params.psycho == 0:
+        events_of_int = getNonPsychotrials(events_of_int)
+
+    if events_of_int.shape[0] < curr_nr_trials:
+        if len(curr_run) > 3:
+            print('    > Psychometric selection from ' + str(curr_nr_trials) + ' to ' + str(events_of_int.shape[0]) + ' trials for ' + curr_run)
+        curr_nr_trials = events_of_int.shape[0]
+
 
     if params.LR == 1:
         events_of_int = getLargeRewardtrials(events_of_int)
@@ -763,9 +797,10 @@ def find_and_z_score_traces(trial_data, dff, params, norm_window=8, sort=False, 
     if params.LRO == 1:
         events_of_int = getNonLROtrials(events_of_int)
 
-    if params.state == 5:
-        if params.align_to == 'Time end':
-            print('2)   LRO selection: # trials: ' + str(events_of_int.shape[0]))
+    if events_of_int.shape[0] < curr_nr_trials:
+        if len(curr_run) > 3:
+            print('    > LRO selection from ' + str(curr_nr_trials) + ' to ' + str(events_of_int.shape[0]) + ' trials for ' + curr_run)
+        curr_nr_trials = events_of_int.shape[0]
 
     if events_of_int.empty:
         print ('No trials found after selection of SOR, LR, O, LRO')
@@ -773,9 +808,12 @@ def find_and_z_score_traces(trial_data, dff, params, norm_window=8, sort=False, 
 
     # 1) State type (e.g. corresp. State name = CueDelay, WaitforResponse...)
     events_of_int = events_of_int.loc[(events_of_int['State type'] == params.state)]  # State type = number of state of interest, typically 3 or 5
-    if params.state == 5:
-        if params.align_to == 'Time end':
-            print('3)   State selection: # trials: ' + str(events_of_int.shape[0]))
+
+    if events_of_int.shape[0] < curr_nr_trials:
+        if len(curr_run) > 3:
+            print('    > State of interest selection from ' + str(curr_nr_trials) + ' to ' + str(events_of_int.shape[0]) + ' trials for ' + curr_run)
+        curr_nr_trials = events_of_int.shape[0]
+
 
     #print("n = " + str(len(events_of_int)) + " events of interest")
     state_name = events_of_int['State name'].values[0]
@@ -786,6 +824,11 @@ def find_and_z_score_traces(trial_data, dff, params, norm_window=8, sort=False, 
         events_of_int = events_of_int.loc[events_of_int['Response'] == params.response]
         # trials where mouse went to the right or left, dep on fiber and ipsi vs contra side
         title = title + ' Response = ' + str(params.response) + ';'
+        if events_of_int.shape[0] < curr_nr_trials:
+            if len(curr_run) > 3:
+                print('    > Response selection from ' + str(curr_nr_trials) + ' to ' + str(
+                    events_of_int.shape[0]) + ' trials for ' + curr_run)
+            curr_nr_trials = events_of_int.shape[0]
     # --------------
     # 3) First and last response:
     if params.first_choice != 0:
@@ -794,11 +837,23 @@ def find_and_z_score_traces(trial_data, dff, params, norm_window=8, sort=False, 
     if params.last_response != 0:
         events_of_int = events_of_int.loc[events_of_int['Last response'] == params.last_response]
         title = title + ' last response = ' + str(params.last_response) + ';'
+
+    if events_of_int.shape[0] < curr_nr_trials:
+        if len(curr_run) > 3:
+            print('    > First choice / last response selection from ' + str(curr_nr_trials) + ' to ' + str(events_of_int.shape[0]) + ' trials for ' + curr_run)
+        curr_nr_trials = events_of_int.shape[0]
+
+
     # --------------
     # 4) Outcome:
     if not params.outcome == 2:  # 2 would be if you don't care about the reward or not, hence selecting trials with an overall / final correct or incorrect outcome
         events_of_int = events_of_int.loc[events_of_int['Trial outcome'] == params.outcome]
         title = title + ' Outcome = ' + str(params.outcome) + ';'
+
+    if events_of_int.shape[0] < curr_nr_trials:
+        if len(curr_run) > 3:
+            print('    > Outcome selection from ' + str(curr_nr_trials) + ' to ' + str(events_of_int.shape[0]) + ' trials for ' + curr_run)
+        curr_nr_trials = events_of_int.shape[0]
 
     # --------------
     # 5) Cues / Sounds:
@@ -808,6 +863,12 @@ def find_and_z_score_traces(trial_data, dff, params, norm_window=8, sort=False, 
     elif params.cue == 'low':
         events_of_int = events_of_int.loc[events_of_int['Trial type'] == 1]
         title = title + ' Cue = low;'
+    if events_of_int.shape[0] < curr_nr_trials:
+        if len(curr_run) > 3:
+            print('    > Cue / sound selection from ' + str(curr_nr_trials) + ' to ' + str(
+                events_of_int.shape[0]) + ' trials for ' + curr_run)
+        curr_nr_trials = events_of_int.shape[0]
+
     # --------------
     # 6) Instance in State & Repeats:
     if params.instance == -1:   # Last time in State
@@ -819,11 +880,20 @@ def find_and_z_score_traces(trial_data, dff, params, norm_window=8, sort=False, 
         title = title + ' instance (' + str(params.instance) + ') first time in state;'
 #   elif params.instance == 2:                 # corresponds to I don't care
 #       events_of_int = events_of_int
+    if events_of_int.shape[0] < curr_nr_trials:
+        if len(curr_run) > 3:
+            print('    > Instance selection from ' + str(curr_nr_trials) + ' to ' + str(
+                events_of_int.shape[0]) + ' trials for ' + curr_run)
+        curr_nr_trials = events_of_int.shape[0]
 
     if params.no_repeats == 1:                                                          # for FG code no repeats is ONLY considered when instance in state set to 1st only
         events_of_int = events_of_int.loc[events_of_int['Max times in state'] == 1]     # here, YJ: no repeats is considered indep. of which instance in state is selected
         title = title + ' no repetitions allowed (' + str(params.no_repeats) + ')'
-
+    if events_of_int.shape[0] < curr_nr_trials:
+        if len(curr_run) > 3:
+            print('    > Repetitions selection from ' + str(curr_nr_trials) + ' to ' + str(
+                events_of_int.shape[0]) + ' trials for ' + curr_run)
+        curr_nr_trials = events_of_int.shape[0]
 
     # --------------
     # 7) First choice directly in/correct?
@@ -841,8 +911,16 @@ def find_and_z_score_traces(trial_data, dff, params, norm_window=8, sort=False, 
     elif params.first_choice_correct == 0:  # first choice incorrect
         events_of_int = events_of_int.loc[(events_of_int['First choice correct'] == 0)]
 
+    if events_of_int.shape[0] < curr_nr_trials:
+        if len(curr_run) > 3:
+            print('    > First choice in/correct selection from ' + str(curr_nr_trials) + ' to ' + str(
+                events_of_int.shape[0]) + ' trials for ' + curr_run)
+        curr_nr_trials = events_of_int.shape[0]
+
+
+
     if events_of_int.empty:
-        print('No trials left after selecting for these parameters')
+        print('No trials left after selecting for these parameters for ' + curr_run)
 
     # --------------
     # --------------
