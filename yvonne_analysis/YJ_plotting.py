@@ -83,21 +83,25 @@ def plot_avg_sem(aligned_traces, fig, ax, ax_overlay, y_range, error_bar_method=
 
 def add_plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_method='sem', sel_color = 'default'):
     # Trace average and sem:
-    mean_trace = decimate(one_side_data.mean_trace, 10)
-    time_points = decimate(one_side_data.time_points, 10)
-    traces = decimate(one_side_data.sorted_traces, 10)
+    if one_side_data.mean_trace.shape[0] != 0:
+    #if one_side_data.mean_trace.shape != np.empty((0, 0)): # sometimes there is no photometry data for a specific situation (e.g. reward incorrect ipsi etc)
+        mean_trace = decimate(one_side_data.mean_trace, 10)
+        time_points = decimate(one_side_data.time_points, 10)
+        traces = decimate(one_side_data.sorted_traces, 10)
 
-    if traces.shape[0] > 5: # plotting only works if there is more than one trace, >5 because it looks like crap otherwise
-        if sel_color == 'default':
-            sel_color = '#3F888F'
+        if traces.shape[0] > 5: # plotting only works if there is more than one trace, >5 because it looks like crap otherwise
+            if sel_color == 'default':
+                sel_color = '#3F888F'
 
-        ax1.plot(time_points, mean_trace, lw=1.5, color=sel_color)  # default: '#3F888F'
+            ax1.plot(time_points, mean_trace, lw=1.5, color=sel_color)  # default: '#3F888F'
 
-        if error_bar_method is not None:
-            error_bar_lower, error_bar_upper = calculate_error_bars(mean_trace, traces,
-                                                                error_bar_method=error_bar_method)
-            ax1.fill_between(time_points, error_bar_lower, error_bar_upper, alpha=0.3,
-                         facecolor=sel_color, linewidth=0) # default: '#7FB5B5'
+            if error_bar_method is not None:
+                error_bar_lower, error_bar_upper = calculate_error_bars(mean_trace, traces,
+                                                                    error_bar_method=error_bar_method)
+                ax1.fill_between(time_points, error_bar_lower, error_bar_upper, alpha=0.3,
+                             facecolor=sel_color, linewidth=0) # default: '#7FB5B5'
+    else:
+        print('no data for add_plot_one_side')
     return ax1, ax2
 
 
@@ -109,17 +113,27 @@ def plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_met
     traces = decimate(one_side_data.sorted_traces, 10)
 
     if traces.shape[0] > 1: # plotting only works if there is more than one trace
-        ax1.plot(time_points, mean_trace, lw=1.5, color='#3F888F')
+
+        if y_label == 'SOR Contra ':
+            color_mean = '#e377c2'
+            color_sem = '#e377c2'
+            alpha = 0.5
+        else:
+            color_mean = '#3F888F'
+            color_sem = '#7FB5B5'
+            alpha = 1
+
+        ax1.plot(time_points, mean_trace, lw=1.5, color=color_mean)
 
         if error_bar_method is not None:
             error_bar_lower, error_bar_upper = calculate_error_bars(mean_trace, traces,
                                                                 error_bar_method=error_bar_method)
-            ax1.fill_between(time_points, error_bar_lower, error_bar_upper, alpha=1,
-                         facecolor='#7FB5B5', linewidth=0)
+            ax1.fill_between(time_points, error_bar_lower, error_bar_upper, alpha=alpha,
+                         facecolor=color_sem, linewidth=0)
 
         y_total = y_range[1] - y_range[0]
         #print('y_total:' + str(y_total) + ', set: ' + str(np.mean(y_range) - 1 / 4 * y_total))
-        ax1.axvline(0, color='#808080', linewidth=0.5)
+        ax1.axvline(0, color='#808080', linewidth=0.5, ls = 'dashed')
         ax1.set_xlim(one_side_data.params.plot_range)
         #ax1.set_ylim(-1,1.5)
         ax1.set_ylim(y_range)
@@ -196,13 +210,17 @@ def plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_met
 def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=False, x_range=[-2, 3], white_dot='default'):
 
     if SessionData.protocol == 'SOR' and SessionData.fiber_side == 'right':
-        rows = 6
-        height = 8.25 * 2
+        rows = 3 #6
+        columns = 6
+        height = 8.25 # * 2
+        width = 10 * 1.5
     else:
         rows = 3
+        columns = 4
+        width = 10
         height = 8.25
 
-    fig, axs = plt.subplots(nrows=rows, ncols=4, figsize=(10, height))  # width, height
+    fig, axs = plt.subplots(nrows=rows, ncols=columns, figsize=(width, height))  # width, height
     #fig, axs = plt.subplots(nrows=rows, ncols=4, figsize=(11, height)) # width, height
     fig.tight_layout(pad=4)
     #fig.tight_layout(pad=2.1, rect=[0,0,0.05,0])  # 2.1)
@@ -251,8 +269,17 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
 
         if data.protocol == 'LRO' or data.protocol == 'LargeRewards':
             y_minmax.append(np.max(SessionData.reward.contra_data_LR.mean_trace))
+            y_minmax.append(np.min(SessionData.reward.contra_data_LR.mean_trace))
         if data.protocol == 'LRO' or data.protocol == 'Omissions':
             y_minmax.append(np.min(SessionData.reward.contra_data_O.mean_trace))
+            y_minmax.append(np.min(SessionData.reward.ipsi_data_O.mean_trace))
+
+        if SessionData.reward.contra_data_incorrect.mean_trace.shape[0] is not 0:
+            y_minmax.append(np.max(SessionData.reward.contra_data_incorrect.mean_trace)) # activate again
+            y_minmax.append(np.min(SessionData.reward.contra_data_incorrect.mean_trace))  # activate again
+        #y_minmax.append(np.max(SessionData.reward.ipsi_data_incorrect.mean_trace))
+        #y_minmax.append(np.min(SessionData.reward.ipsi_data_incorrect.mean_trace))
+
 
         hm_minmax.append(np.min(aligned_data.ipsi_data.sorted_traces))
         hm_minmax.append(np.max(aligned_data.ipsi_data.sorted_traces))
@@ -280,6 +307,12 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
             aligned_data = SessionData.reward
             row = 2
 
+        c_column = 0 # contra column for 2AC
+        i_column = 2 # ipsi column for 2AC
+        if SessionData.protocol == 'SOR' and SessionData.fiber_side == 'right':
+            c_column = 2 # contra column for 2AC if SOR plots on the left
+            i_column = 4 # ipsi column for 2AC if SOR plots on the left
+
         aligned_data.ipsi_data.params.plot_range = x_range
         aligned_data.contra_data.params.plot_range = x_range
 
@@ -287,26 +320,39 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
             add_incorrect = True
             legend_text = []
             if data.protocol == 'LRO' or data.protocol == 'LargeRewards':
-                contra_LRO_traces, legend = add_plot_one_side(SessionData.reward.contra_data_LR, fig, axs[row, 0], axs[row, 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#e377c2')
-                ipsi_LRO_traces, legend = add_plot_one_side(SessionData.reward.ipsi_data_LR, fig, axs[row, 2], axs[row, 3], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#e377c2')
+                contra_LRO_traces, legend = add_plot_one_side(SessionData.reward.contra_data_LR, fig, axs[row, c_column], axs[row, c_column + 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#e377c2')
+                ipsi_LRO_traces, legend = add_plot_one_side(SessionData.reward.ipsi_data_LR, fig, axs[row, i_column], axs[row, i_column +1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#e377c2')
                 legend_text.append('LR')
                 add_incorrect = False
             if data.protocol == 'LRO' or data.protocol == 'Omissions':
-                contra_LRO_traces, legend = add_plot_one_side(SessionData.reward.contra_data_O, fig, axs[row, 0], axs[row, 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#9467bd')
-                ipsi_LRO_traces, legend = add_plot_one_side(SessionData.reward.ipsi_data_O, fig, axs[row, 2], axs[row, 3], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#9467bd')
+                contra_LRO_traces, legend = add_plot_one_side(SessionData.reward.contra_data_O, fig, axs[row, c_column], axs[row, c_column + 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#9467bd')
+                ipsi_LRO_traces, legend = add_plot_one_side(SessionData.reward.ipsi_data_O, fig, axs[row, i_column], axs[row, i_column +1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#9467bd')
                 add_incorrect = False
                 legend_text.append('O')
+
+            add_incorrect_legend = False
             if add_incorrect:
-                contra_incorrect, legend = add_plot_one_side(SessionData.reward.contra_data_incorrect, fig, axs[row, 0], axs[row, 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#DC143C')
-                ipsi_incorrect, legend = add_plot_one_side(SessionData.reward.ipsi_data_incorrect, fig, axs[row, 2], axs[row, 3], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#DC143C')
-                legend_text.append('incorrect')
-            axs[row,0].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
+                if SessionData.reward.contra_data_incorrect.mean_trace.shape[0] != 0:
+                    contra_incorrect, legend = add_plot_one_side(SessionData.reward.contra_data_incorrect, fig, axs[row, c_column], axs[row, c_column + 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#DC143C')
+                    add_incorrect_legend = True
+                else:
+                    print('no SessionData.reward.contra_data_incorrect.mean_trace trials to plot' + str(SessionData.reward.contra_data_incorrect.mean_trace.shape))
+
+                if SessionData.reward.ipsi_data_incorrect.mean_trace.shape[0] != 0:
+                    ipsi_incorrect, legend = add_plot_one_side(SessionData.reward.ipsi_data_incorrect, fig, axs[row, i_column], axs[row, i_column + 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#DC143C')
+                    add_incorrect_legend = True
+                else:
+                    print('no SessionData.reward.ipsi_data_incorrect.mean_trace trials to plot' + str(SessionData.reward.ipsi_data_incorrect.mean_trace.shape))
+
+                if add_incorrect_legend:
+                    legend_text.append('incorrect')
+            axs[row, 0].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
 
 
-        contra_heatmap = plot_one_side(aligned_data.contra_data, fig, axs[row, 0], axs[row, 1], y_range, hm_range,
+        contra_heatmap = plot_one_side(aligned_data.contra_data, fig, axs[row, c_column], axs[row, c_column +1], y_range, hm_range,   # axs[row, 0], axs[row, 1]
                                        error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
                                        y_label='Contra ', top_label=alignement)
-        ipsi_heatmap = plot_one_side(aligned_data.ipsi_data, fig, axs[row, 2], axs[row, 3], y_range, hm_range,
+        ipsi_heatmap = plot_one_side(aligned_data.ipsi_data, fig, axs[row, i_column], axs[row, i_column + 1], y_range, hm_range,   #axs[row, 2], axs[row, 3]
                                      error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
                                      y_label='Ipsi ', top_label='')
 
@@ -322,26 +368,32 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
         for alignement in alignements:
             if alignement == 'cue':
                 aligned_data = SessionData.SOR_cue
-                row = 3
+                row = 0 #3
             elif alignement == 'movement':
                 aligned_data = SessionData.SOR_choice
-                row = 4
+                row = 1 # 4
             elif alignement == 'reward':
                 aligned_data = SessionData.SOR_reward
-                row = 5
+                row = 2 # 5
 
             aligned_data.contra_data.params.plot_range = x_range
+
+            if alignement == 'reward':
+                legend_text = []
+                color_mean = '#e377c2'
+                color_sem = '#e377c2'
+                alpha = 0.3
+                contra_incorrect, legend = add_plot_one_side(SessionData.reward.contra_data_incorrect, fig, axs[row, 0],
+                                                             axs[row, 1], y_range, hm_range,
+                                                             error_bar_method=error_bar_method, sel_color='#DC143C')
+
+                legend_text.append('incorrect')
+                axs[row, 0].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
+
 
             contra_heatmap = plot_one_side(aligned_data.contra_data, fig, axs[row, 0], axs[row, 1], y_range, hm_range,
                                            error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
                                            y_label='SOR Contra ', top_label=alignement)
-
-            if alignement == 'reward':
-                contra_incorrect, legend = add_plot_one_side(SessionData.reward.contra_data_incorrect, fig, axs[row, 0],
-                                                             axs[row, 0], y_range, hm_range,
-                                                             error_bar_method=error_bar_method, sel_color='#DC143C')
-                legend_text.append('incorrect')
-                axs[row, 0].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
 
 
     return fig
@@ -459,14 +511,14 @@ def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, err
 # function by YJ to analyse a single session of a single mouse
 
 if __name__ == '__main__':
-    mice = ['TS5'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
-    dates = ['20230227']# ['20230922'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
+    mice =  ['TS32','TS33'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
+    dates = ['20231030'] # ['20230922'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
     recording_site = 'TS'
     fiber_side = 'right'
     exclude_protocols = ['psychometric','large','Large']
 
     # --------------------------------------
-    plot = 2
+    plot = 1
     # --------------------------------------
 
     all_experiments = get_all_experimental_records()
@@ -477,7 +529,7 @@ if __name__ == '__main__':
             for date in dates:
                 experiment = all_experiments[
                     (all_experiments['date'] == date) & (all_experiments['mouse_id'] == mouse)]
-                #print(experiment)
+                print('   > Now analysing:' + mouse + ' ' + date)
                 fiber_side = experiment['fiber_side'].values[0]
                 recording_site = experiment['recording_site'].values[0]
                 data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)

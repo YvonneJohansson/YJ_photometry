@@ -224,6 +224,7 @@ class SessionData(object):
         self.outcome = None
         self.return_data = None
 
+        debug = True
 
         if debug == True:
             print('Processing session: ' + self.mouse + '_' + self.date + '_' + self.fiber_side + '_' + self.recording_site + '_movement / choice:')
@@ -374,7 +375,7 @@ class RewardAlignedData(object):
         self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
 
         params = {'state_type_of_interest': 5,
-                  'outcome': 2, #0    # trial outcome = 0 means incorrect; 1 = correct; 2 = doesn't matter
+                  'outcome': 0, #0    # trial outcome = 0 means incorrect; 1 = correct; 2 = doesn't matter
                   # 'last_outcome': 0,  # NOT USED CURRENTLY
                   'no_repeats': 0,
                   'last_response': 0,
@@ -523,7 +524,7 @@ class SORRewardAlignedData(object):
         params = {'state_type_of_interest': 5,
                   'outcome': 1,
                   #'last_outcome': 0,  # NOT USED CURRENTLY
-                  'no_repeats': 0,
+                  'no_repeats': 1,
                   'last_response': 0,
                   'align_to': 'Time end',
                   'instance': -1,
@@ -921,67 +922,77 @@ def find_and_z_score_traces(trial_data, dff, params, curr_run, norm_window=8, so
 
     if events_of_int.empty:
         print('No trials left after selecting for these parameters for ' + curr_run)
+        time_points = np.empty((0, 0))
+        mean_trace = np.empty((0, 0))
+        sorted_traces = np.empty((0, 0))
+        sorted_other_event = np.empty((0, 0))
+        state_name = np.empty((0, 0))
+        title = np.empty((0, 0))
+        sorted_next_poke = np.empty((0, 0))
+        trial_nums = np.empty((0, 0))
+        event_times = np.empty((0, 0))
+        relative_outcome_times = np.empty((0, 0))
+    else:
+        # --------------
+        # --------------
+        events_of_int_reset = events_of_int.reset_index(drop=True)
+        event_times = events_of_int[params.align_to].values # start or end of state of interest time points
+        trial_nums = events_of_int['Trial num'].values
+        trial_starts = events_of_int['Trial start'].values
+        trial_ends = events_of_int['Trial end'].values
 
-    # --------------
-    # --------------
-    events_of_int_reset = events_of_int.reset_index(drop=True)
-    event_times = events_of_int[params.align_to].values # start or end of state of interest time points
-    trial_nums = events_of_int['Trial num'].values
-    trial_starts = events_of_int['Trial start'].values
-    trial_ends = events_of_int['Trial end'].values
-
-    other_event = np.asarray(np.squeeze(events_of_int[params.other_time_point].values) - np.squeeze(events_of_int[params.align_to].values))
-    # for ex. time end - time start of state of interest
-    # squeeze: from array([[x]]) to [x]
+        other_event = np.asarray(np.squeeze(events_of_int[params.other_time_point].values) - np.squeeze(events_of_int[params.align_to].values))
+        # for ex. time end - time start of state of interest
+        # squeeze: from array([[x]]) to [x]
 
 
-    state_name = events_of_int['State name'].values[0]
+        #state_name = events_of_int['State name'].values[0]
 
-    last_trial = np.max(trial_data['Trial num'])                # absolutely last trial in session
-    last_trial_num = events_of_int['Trial num'].unique()[-1]    # last trial that is considered in analysis meeting params requirements
-    events_reset_index = events_of_int.reset_index(drop=True)   # same as above?
-    last_trial_event_index = events_reset_index.loc[(events_reset_index['Trial num'] == last_trial_num)].index
-        # index of the last event in the last trial that is considered in analysis meeting params requirements
-    next_centre_poke = get_next_centre_poke(trial_data, events_of_int, last_trial_num == last_trial)
-    trial_starts = get_first_poke(trial_data, events_of_int)
-    absolute_outcome_times = get_outcome_time(trial_data, events_of_int)
-    relative_outcome_times = absolute_outcome_times - event_times
+        last_trial = np.max(trial_data['Trial num'])                # absolutely last trial in session
+        last_trial_num = events_of_int['Trial num'].unique()[-1]    # last trial that is considered in analysis meeting params requirements
+        events_reset_index = events_of_int.reset_index(drop=True)   # same as above?
+        last_trial_event_index = events_reset_index.loc[(events_reset_index['Trial num'] == last_trial_num)].index
+            # index of the last event in the last trial that is considered in analysis meeting params requirements
+        next_centre_poke = get_next_centre_poke(trial_data, events_of_int, last_trial_num == last_trial)
+        trial_starts = get_first_poke(trial_data, events_of_int)
+        absolute_outcome_times = get_outcome_time(trial_data, events_of_int)
+        relative_outcome_times = absolute_outcome_times - event_times
 
-    #print('     Settings: ' + title)
-    if get_photometry_data == True:
-        next_centre_poke[last_trial_event_index] = events_reset_index[params.align_to].values[
-                                                     last_trial_event_index] + 1  # so that you can find reward peak
-        # YJ: why is this necessary? what does it do?
+        #print('     Settings: ' + title)
+        if get_photometry_data == True:
+            next_centre_poke[last_trial_event_index] = events_reset_index[params.align_to].values[
+                                                         last_trial_event_index] + 1  # so that you can find reward peak
+            # YJ: why is this necessary? what does it do?
 
-        next_centre_poke_norm = next_centre_poke - event_times
+            next_centre_poke_norm = next_centre_poke - event_times
 
-        event_photo_traces = get_photometry_around_event(event_times, dff, pre_window=norm_window,
-                                                         post_window=norm_window)
-        norm_traces = stats.zscore(event_photo_traces.T, axis=0)
+            event_photo_traces = get_photometry_around_event(event_times, dff, pre_window=norm_window,
+                                                             post_window=norm_window)
+            norm_traces = stats.zscore(event_photo_traces.T, axis=0)
 
-        singe_event = False
-        if other_event.size == 1:
-            print('Only one event for ' + title + ' so no sorting')
-            sort = False
-            single_event = True
-        elif len(other_event) != norm_traces.shape[1]:
-           other_event = other_event[:norm_traces.shape[1]]
-           print('Mismatch between #events and #other_event')
-        if sort:
-            arr1inds = other_event.argsort()
-            sorted_other_event = other_event[arr1inds[::-1]] #sorting backwards [::-1]
-            sorted_traces = norm_traces.T[arr1inds[::-1]]
-            sorted_next_poke = next_centre_poke_norm[arr1inds[::-1]]
-        else:
-            sorted_other_event = other_event
-            sorted_traces = norm_traces.T
-            sorted_next_poke = next_centre_poke_norm
+            singe_event = False
+            if other_event.size == 1:
+                print('Only one event for ' + title + ' so no sorting')
+                sort = False
+                single_event = True
+            elif len(other_event) != norm_traces.shape[1]:
+               other_event = other_event[:norm_traces.shape[1]]
+               print('Mismatch between #events and #other_event')
+            if sort:
+                arr1inds = other_event.argsort()
+                sorted_other_event = other_event[arr1inds[::-1]] #sorting backwards [::-1]
+                sorted_traces = norm_traces.T[arr1inds[::-1]]
+                sorted_next_poke = next_centre_poke_norm[arr1inds[::-1]]
+            else:
+                sorted_other_event = other_event
+                sorted_traces = norm_traces.T
+                sorted_next_poke = next_centre_poke_norm
 
-        time_points = np.linspace(-norm_window, norm_window, norm_traces.shape[0], endpoint=True, retstep=False,
-                                  dtype=None,
-                                  axis=0)
-        mean_trace = np.mean(sorted_traces, axis=0)
+            time_points = np.linspace(-norm_window, norm_window, norm_traces.shape[0], endpoint=True, retstep=False,
+                                      dtype=None,
+                                      axis=0)
+            mean_trace = np.mean(sorted_traces, axis=0)
 
-        return time_points, mean_trace, sorted_traces, sorted_other_event, state_name, title, sorted_next_poke, trial_nums, event_times, relative_outcome_times
+    return time_points, mean_trace, sorted_traces, sorted_other_event, state_name, title, sorted_next_poke, trial_nums, event_times, relative_outcome_times
         #sorted other event later called reaction time
 
