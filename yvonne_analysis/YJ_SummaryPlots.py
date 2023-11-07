@@ -13,8 +13,8 @@ if __name__ == '__main__':
 
     main_directory = 'Z:\\users\\Yvonne\\photometry_2AC\\'
     all_experiments = get_all_experimental_records()
-    plot = 'RTC_group_plot'
-    #plot = 'SOR_group_plot'
+    #plot = 'RTC_group_plot'
+    plot = 'SOR_group_plot'
 
     if plot == 'RTC_group_plot':
         mice = ['TS3','TS20','TS21','TS26','TS29']
@@ -163,16 +163,32 @@ if __name__ == '__main__':
         #plt.savefig(main_directory + 'YJ_SummaryPlots\\' + 'APE_vs_RTC_group_plot_all_mice.png', dpi=300, transparent=True)
         plt.show()
 
-        fig, ax = plt.subplots(1, 1 , figsize=(5, 5))
+        #dotplot
+        fig, ax = plt.subplots(1, 1 , figsize=(2, 3)) # width, height
 
+        mean_peak_values = [np.mean(APE_peak_values), np.mean(RTC_peak_values)]
+        sem_peak_values = [np.std(APE_peak_values)/np.sqrt(len(APE_peak_values)), np.std(RTC_peak_values)/np.sqrt(len(RTC_peak_values))]
         for i in range(0,len(APE_peak_values)):
             x_val = [0,1]
             y_val = [APE_peak_values[i], RTC_peak_values[i]]
-            ax.plot(x_val, y_val, color='#3F888F', linewidth=0.5, marker = 'o', markersize=5)
+            ax.plot(x_val, y_val, color='#3F888F', linewidth=0.5, marker = 'o', markersize=10)
             #ax.scatter(x_val, y_val, color='#3F888F', s=10)
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
-            ax.set_xticks([0, 1], labels=["APE", "RTC"])
+            #ax.set_xticks([0, 1], labels=["APE", "RTC"])
+
+        ax.plot(x_val, mean_peak_values, color='r', linewidth=1, marker = 'o', markersize=10)
+        ax.plot([0, 0], [mean_peak_values[0] + sem_peak_values[0], mean_peak_values[0] - sem_peak_values[0]], color='r', linewidth=1)
+        ax.plot([1, 1], [mean_peak_values[1] + sem_peak_values[1], mean_peak_values[1] - sem_peak_values[1]], color='r', linewidth=1)
+
+        ax.set_xticks([0, 1])
+        ax.set_ylabel('Z-scored dF/F')
+        ax.set_xlim(-0.2, 1.2)
+        ax.set_ylim(-0.5, 1.5)
+        ax.yaxis.set_ticks([-0.5, 0.5, 1.5])
+        fig.tight_layout(pad=2)
+        plt.savefig(main_directory + 'YJ_SummaryPlots\\' + 'APE_vs_RTC_group_plot_all_mice_dotplot.pdf', dpi=300,
+                    transparent=True)
         plt.show()
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -180,8 +196,8 @@ if __name__ == '__main__':
 
     if plot == 'SOR_group_plot':
         print(plot)
-        mice = ['TS24', 'TS26', 'TS27','TS29']
-        dates = ['20230929', '20230918','20231003', '20230918']
+        mice = ['TS24', 'TS26', 'TS27','TS29','TS32','TS33','TS34']
+        dates = ['20230929', '20230918','20231003', '20230918','20231026','20231102','20231031']
         x_range = [-2, 3]
         y_range = [-1, 2]
 
