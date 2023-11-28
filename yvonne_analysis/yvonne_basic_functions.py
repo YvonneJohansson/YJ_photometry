@@ -377,10 +377,10 @@ class RewardAlignedData(object):
         params = {'state_type_of_interest': 5,
                   'outcome': 0, #0    # trial outcome = 0 means incorrect; 1 = correct; 2 = doesn't matter
                   # 'last_outcome': 0,  # NOT USED CURRENTLY
-                  'no_repeats': 0,
+                  'no_repeats': 1,
                   'last_response': 0,
                   'align_to': 'Time end',
-                  'instance': 2,    # doesn't matter
+                  'instance': -1,    # last one
                   'plot_range': [-6, 6],
                   'first_choice_correct': 0, #0 , 2 = it doesn't matter, 1 = correct YJ!! (FG used 0 as it doesnt matter!!)
                   'SOR': 0,
@@ -391,8 +391,8 @@ class RewardAlignedData(object):
                   # exclude LRO = large reward Omissions: >> separate those trials from regular rewards at all times.
                   'cue': 'None'}
         curr_run = 'reward aligned_incorrect'
-        self.ipsi_data_incorrect = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, 0, curr_run='') # now it doesn't matter if the 'first choice' (= first response left or right) is on the correct side or not!
-        self.contra_data_incorrect = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, 0, curr_run)
+        self.ipsi_data_incorrect = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric, curr_run='') # now it doesn't matter if the 'first choice' (= first response left or right) is on the correct side or not!
+        self.contra_data_incorrect = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
 
         if session_data.protocol == 'LargeRewards' or session_data.protocol == 'Omissions' or session_data.protocol == 'LRO':
 
