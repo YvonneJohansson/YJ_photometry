@@ -1,4 +1,5 @@
 import matplotlib
+import numpy as np
 
 from yvonne_basic_functions import *
 from YJ_plotting import *
@@ -13,12 +14,13 @@ if __name__ == '__main__':
 
     main_directory = 'Z:\\users\\Yvonne\\photometry_2AC\\'
     all_experiments = get_all_experimental_records()
-    #plot = 'RTC_group_plot'
-    plot = 'SOR_group_plot'
+    plot = 'RTC_group_plot'
+    #plot = 'SOR_group_plot'
+    #plot = 'APE_group_plot'
 
     if plot == 'RTC_group_plot':
-        mice = ['TS3','TS20','TS21','TS26','TS29']
-        dates = ['20230203','20230512','20230510','20230929','20230927']
+        mice = ['TS3','TS20','TS21','TS26','TS33'] # 'TS29_20230927', TS34_20231102
+        dates = ['20230203','20230512','20230510','20230929','20231106']
         x_range = [-2, 3]
         y_range = [-0.5, 1]
         for i, mouse in enumerate(mice):
@@ -165,6 +167,8 @@ if __name__ == '__main__':
 
         #dotplot
         fig, ax = plt.subplots(1, 1 , figsize=(2, 3)) # width, height
+        print('APE peak values: ' + str(APE_peak_values))
+        print('RTC peak values: ' + str(RTC_peak_values))
 
         mean_peak_values = [np.mean(APE_peak_values), np.mean(RTC_peak_values)]
         sem_peak_values = [np.std(APE_peak_values)/np.sqrt(len(APE_peak_values)), np.std(RTC_peak_values)/np.sqrt(len(RTC_peak_values))]
@@ -196,15 +200,25 @@ if __name__ == '__main__':
 
     if plot == 'SOR_group_plot':
         print(plot)
-        mice = ['TS24', 'TS26', 'TS27','TS29','TS32','TS33','TS34']
-        dates = ['20230929', '20230918','20231003', '20230918','20231026','20231102','20231031']
+        #mice = ['TS24', 'TS26', 'TS27', 'TS32', 'TS33', 'TS34']
+        #dates = ['20230929', '20230918', '20231003', '20231113', '20231110', '20231031']
+        # performance 2AC: 57% +- 4%
+
+        #SFN plot 231111
+        mice = ['TS24', 'TS26', 'TS27','TS32','TS33','TS34']
+        dates = ['20230929', '20230918','20231003', '20231026','20231102','20231031']
+        # performance: 55% +- 4%
+
         x_range = [-2, 3]
         y_range = [-1, 2]
 
         fig1, ax1 = plt.subplots(3, len(mice)*2, figsize=(6 * len(mice), 10)) # each mouse
-        fig2, ax2 = plt.subplots(3, 2, figsize=(6, 10)) # group average
 
         all_group_data = {'SOR_cue':[], 'SOR_choice':[], 'SOR_reward':[], 'cue':[], 'choice':[], 'reward':[]}
+        SOR_cue_peak_values = []
+        SOR_choice_peak_values = []
+        performances = []
+
         for i, mouse in enumerate(mice):
             print('     >' + mouse + ' ' + dates[i])
             nr_mice = len(mice)
@@ -217,11 +231,11 @@ if __name__ == '__main__':
             fiber_side = experiment['fiber_side'].values[0]
             recording_site = experiment['recording_site'].values[0]
             data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)
-
+            performances.append(data.performance)
 
             #print(vars(data))  # get all attributes of the data object
 
-            alignements = ['SOR_cue', 'SOR_choice', 'SOR_reward', 'cue', 'choice', 'reward']
+            alignements = ['SOR_choice', 'SOR_cue', 'SOR_reward', 'cue', 'choice', 'reward']
 
             for a, alignement in enumerate(alignements):
 
@@ -247,6 +261,23 @@ if __name__ == '__main__':
                 curr_data_sem_lower, curr_data_sem_upper = calculate_error_bars(curr_data_mean,
                                                                                             curr_data_traces,
                                                                                             error_bar_method='sem')
+
+
+                # get the peak values:
+                if alignement == 'SOR_choice':
+                    start_inx = 8000 # time 0
+                    #SOR_choice_data_range = [start_inx:start_inx + 8000]
+                    SOR_choice_time_range = curr_data_time[start_inx:start_inx + 8000]
+                    SOR_choice_peak_index = np.argmax(curr_data_mean[start_inx:start_inx + 8000])
+                    SOR_choice_peak_time = SOR_choice_time_range[SOR_choice_peak_index]
+                    SOR_choice_peak_value = curr_data_mean[start_inx + SOR_choice_peak_index]
+                    SOR_choice_peak_values.append(SOR_choice_peak_value)
+                        #print(mouse + ' ' + date + ' ' + alignement + ' ' + str(SOR_choice_peak_value) + ' ' + str(SOR_choice_peak_time))
+
+                elif alignement == 'SOR_cue':
+                    SOR_cue_peak_value = curr_data_mean[start_inx + SOR_choice_peak_index]
+                    SOR_cue_peak_values.append(SOR_cue_peak_value)
+
 
                 # plot single mouse:
                 legend = []
@@ -283,7 +314,16 @@ if __name__ == '__main__':
 
                 all_group_data[alignement].append(curr_data_mean)
                 #print(type(all_group_data))
+        plt.savefig(main_directory + 'YJ_SummaryPlots\\' + '2AC_vs_SOR_group.pdf', dpi=300,
+                        transparent=True)
 
+
+        print('performances: ' + str("%.2f" % np.mean(performances)) + ' +/- ' + str("%.2f" % (np.std(performances) / np.sqrt(nr_mice)))) # + ' n=' + str(nr_mice) + '(' + str(performances) + ')')
+
+
+
+
+        fig2, ax2 = plt.subplots(3, 2, figsize=(6, 10))  # group average
         fig2.tight_layout(pad=4)
         a = 0
         align_to = ['cue', 'choice', 'reward']
@@ -335,6 +375,212 @@ if __name__ == '__main__':
         plt.savefig(main_directory + 'YJ_SummaryPlots\\' + '2AC_vs_SOR_group_plot_all_mice.pdf', dpi=300, transparent=True)
         #plt.savefig(main_directory + 'YJ_SummaryPlots\\' + 'APE_vs_RTC_group_plot_all_mice.png', dpi=300, transparent=True)
 
+
+
+        # dotplot
+        fig3, ax3 = plt.subplots(1, 1, figsize=(2, 3))  # dotplot
+        print('SOR_choice_peak_values: ' + str(SOR_choice_peak_values))
+        print('SOR_cue_peak_values: ' + str(SOR_cue_peak_values))
+
+        mean_peak_values = [np.mean(SOR_choice_peak_values), np.mean(SOR_cue_peak_values)]
+        sem_peak_values = [np.std(SOR_choice_peak_values) / np.sqrt(len(SOR_choice_peak_values)),
+                       np.std(SOR_cue_peak_values) / np.sqrt(len(SOR_cue_peak_values))]
+
+        for i in range(0, len(SOR_choice_peak_values)):
+            x_val = [0, 1]
+            y_val = [SOR_choice_peak_values[i], SOR_cue_peak_values[i]]
+            ax3.plot(x_val, y_val, color='#3F888F', linewidth=0.5, marker='o', markersize=10)
+            ax3.spines['top'].set_visible(False)
+            ax3.spines['right'].set_visible(False)
+            # ax.set_xticks([0, 1], labels=["APE", "RTC"])
+
+        ax3.plot(x_val, mean_peak_values, color='r', linewidth=1, marker='o', markersize=10)
+        ax3.plot([0, 0], [mean_peak_values[0] + sem_peak_values[0], mean_peak_values[0] - sem_peak_values[0]], color='r',
+                linewidth=1)
+        ax3.plot([1, 1], [mean_peak_values[1] + sem_peak_values[1], mean_peak_values[1] - sem_peak_values[1]], color='r',
+                linewidth=1)
+
+        ax3.set_xticks([0, 1])
+        ax3.set_ylabel('Z-scored dF/F')
+        ax3.set_xlim(-0.2, 1.2)
+        ax3.set_ylim(-1, 2)
+        ax3.yaxis.set_ticks([-1, 0, 1, 2])
+        fig3.tight_layout(pad=2)
+        plt.savefig(main_directory + 'YJ_SummaryPlots\\' + 'SOR_choice_vs_cue_group_plot_all_mice_dotplot.pdf', dpi=300,
+                transparent=True)
         plt.show()
+
+
+
+
+
+
+   # ------------------------------------------------------------------------------------------------------------------
+   # ------------------------------------------------------------------------------------------------------------------
+
+
+
+
+    if plot == 'APE_group_plot':
+       DATVglut_mice = ['T10','T11','T12','T13']
+       DATVglut_dates = ['20231106','20231107','20231103','20231102']
+
+       dLight_mice = ['TS24','TS26','TS33','TS34']
+       dLight_dates = ['20230920','20230918','20231102','20231030']
+
+
+
+       mice = DATVglut_mice
+       dates = DATVglut_dates
+       group = 'DATVglut'
+
+       mice = dLight_mice
+       dates = dLight_dates
+       group = 'dLight'
+
+
+       x_range = [-2, 3]
+       y_range = [-1, 2]
+
+       all_group_data = {'cue_contra': [],'cue_ipsi': [], 'choice_contra': [],'choice_ipsi': [], 'reward_correct': [], 'reward_incorrect': []}
+       fig1, ax1 = plt.subplots(3, 1, figsize=(4 , 10))
+
+       for i, mouse in enumerate(mice):
+            nr_mice = len(mice)
+            date = dates[i]
+            # get movement signal from same day session:
+            experiment = all_experiments[
+                (all_experiments['date'] == date) & (all_experiments['mouse_id'] == mouse)]
+            fiber_side = experiment['fiber_side'].values[0]
+            recording_site = experiment['recording_site'].values[0]
+            data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)
+
+            alignements = ['cue', 'choice', 'reward']
+
+            for a, alignement in enumerate(alignements):
+                if alignement == 'cue':
+                    curr_data = data.cue
+                elif alignement == 'choice':
+                    curr_data = data.choice
+                elif alignement == 'reward':
+                    curr_data = data.reward
+
+                if alignement is not 'reward':
+
+                    # contalateral data:
+                    curr_data_contra_mean = decimate(curr_data.contra_data.mean_trace, 10)
+                    curr_data_contra_time = decimate(curr_data.contra_data.time_points, 10)
+                    curr_data_contra_traces = decimate(curr_data.contra_data.sorted_traces, 10)
+
+                    curr_data_contra_sem_upper = np.zeros(curr_data_contra_mean.shape)
+                    curr_data_contra_sem_lower = np.zeros(curr_data_contra_mean.shape)
+                    curr_data_contra_sem_lower, curr_data_contra_sem_upper = calculate_error_bars(curr_data_contra_mean,
+                                                                                curr_data_contra_traces,
+                                                                                error_bar_method='sem')
+
+                    all_group_data[alignement + '_contra'].append(curr_data_contra_mean)
+
+                    # ipsilateral data:
+                    curr_data_ipsi_mean = decimate(curr_data.ipsi_data.mean_trace, 10)
+                    curr_data_ipsi_time = decimate(curr_data.ipsi_data.time_points, 10)
+                    curr_data_ipsi_traces = decimate(curr_data.ipsi_data.sorted_traces, 10)
+
+                    curr_data_ipsi_sem_upper = np.zeros(curr_data_ipsi_mean.shape)
+                    curr_data_ipsi_sem_lower = np.zeros(curr_data_ipsi_mean.shape)
+                    curr_data_ipsi_sem_lower, curr_data_ipsi_sem_upper = calculate_error_bars(curr_data_ipsi_mean,
+                                                                                              curr_data_ipsi_traces,
+                                                                                              error_bar_method='sem')
+
+                    all_group_data[alignement + '_ipsi'].append(curr_data_ipsi_mean)
+
+                elif alignement is 'reward':
+                    # correct trials:
+                    correct_traces = np.concatenate((curr_data.contra_data.sorted_traces, curr_data.ipsi_data.sorted_traces), axis=0)
+                    curr_data_correct_mean = decimate(np.mean(correct_traces, axis=0), 10)
+                    curr_data_correct_time = decimate(curr_data.contra_data.time_points, 10) # time points are always the same, no matter ipsi / contra / in/correct
+                    curr_data_correct_traces = decimate(correct_traces, 10)
+
+                    curr_data_correct_sem_upper = np.zeros(curr_data_correct_mean.shape)
+                    curr_data_correct_sem_lower = np.zeros(curr_data_correct_mean.shape)
+                    curr_data_correct_sem_lower, curr_data_correct_sem_upper = calculate_error_bars(curr_data_correct_mean,
+                                                                                                  curr_data_correct_traces,
+                                                                                                  error_bar_method='sem')
+                    all_group_data[alignement + '_correct'].append(curr_data_correct_mean)
+
+                    # incorrect trials:
+                    incorrect_traces = curr_data.contra_data_incorrect.sorted_traces
+                    #incorrect_traces = np.concatenate((curr_data.contra_data_incorrect.sorted_traces, curr_data.ipsi_data_incorrect.sorted_traces), axis=0)
+                    curr_data_incorrect_mean = decimate(np.mean(incorrect_traces, axis=0), 10)
+                    curr_data_incorrect_time = decimate(curr_data.contra_data.time_points, 10) # time points are always the same, no matter ipsi / contra / in/correct
+                    curr_data_incorrect_traces = decimate(incorrect_traces, 10)
+
+                    #curr_data_correct_sem_upper = np.zeros(curr_data_correct_mean.shape)
+                    #curr_data_correct_sem_lower = np.zeros(curr_data_correct_mean.shape)
+                    #curr_data_correct_sem_lower, curr_data_correct_sem_upper = calculate_error_bars(curr_data_correct_mean,
+                        #                                                                          curr_data_correct_traces,
+                        #                                                                          error_bar_method='sem')
+                    all_group_data[alignement + '_incorrect'].append(curr_data_incorrect_mean)
+
+
+
+
+
+
+       # plot data:
+       fig1.tight_layout(pad=4)
+       align_to = ['cue', 'choice', 'reward']
+       legend = ['contra', 'ipsi']
+       for a, key in enumerate(all_group_data.keys()):
+                    color = 'cyan'
+                    if a == 0:
+                        r = 0
+                        color = 'blue' # '#FF6495ED' # 'blue'
+                    if a == 2:
+                        r = 1
+                        color = 'blue'
+                    elif a == 4:
+                        r = 2
+                        color = 'blue'
+
+                    curr_data = all_group_data[key]
+                    curr_data_set_mean = np.mean(curr_data, axis=0)
+                    curr_data_set_sem = np.std(curr_data, axis=0) / np.sqrt(nr_mice)
+
+
+                    ax1[r].plot(curr_data_contra_time, curr_data_set_mean, lw=1, color=color)
+                    ax1[r].fill_between(curr_data_contra_time, curr_data_set_mean + curr_data_set_sem, curr_data_set_mean - curr_data_set_sem, color=color,
+                                           linewidth=1, alpha=0.3)
+
+       for r in range(3):
+           if r < 2:
+               legend = ['contra','ipsi']
+               ax1[r].legend(legend, loc='upper right', fontsize=8, frameon=False)
+           if r == 2:
+                legend = ['correct', 'incorrect']
+                ax1[r].legend(legend, loc='upper right', fontsize=8, frameon=False)
+
+           ax1[r].axvline(0, color='#808080', linewidth=0.5, ls='dashed')
+           ax1[r].spines['top'].set_visible(False)
+           ax1[r].spines['right'].set_visible(False)
+           ax1[r].set_ylim(y_range)
+           ax1[r].set_ylabel('Z-scored dF/F')
+           #ax1[r].set_yticks(np.arange(y_range[0], y_range[1] + 1, 1))
+           ax1[r].set_xlabel('Time (s)')
+           ax1[r].set_xlim(x_range)
+       plt.savefig(main_directory + 'YJ_SummaryPlots\\' + 'APE_group_plot_all_mice_' + group + '.pdf', dpi=300, transparent=True)
+       plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
