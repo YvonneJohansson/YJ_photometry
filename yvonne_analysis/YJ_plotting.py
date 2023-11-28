@@ -435,15 +435,21 @@ def heat_map_and_mean_SingleSession_RTC(Session_data, RTC_trial_data, RTC_df, er
                                    y_label='Contra ', top_label=alignement)
 
     # Random_Tone_Clouds:
+    #print(trial_data['Sound type'].unique())
+    if RTC_trial_data['Sound type'].unique() == 2:
+        curr_label = 'RWN'
+    else:
+        curr_label = 'RTC'
+
     RTC_data = ZScoredTraces_RTC(RTC_trial_data, RTC_df, x_range)
 
     RTC_heatmap = plot_one_side(RTC_data, fig, axs[1, 0], axs[1, 1], y_range, hm_range,
                                    error_bar_method=error_bar_method, sort=False, white_dot=None,
-                                   y_label='', top_label='RTC')
+                                   y_label='', top_label=curr_label)
 
 
     text = data.mouse + '_' + data.date + '_' + data.recording_site + '_' + \
-               data.fiber_side + ', protocol: ' + data.protocol + data.protocol_info + ', performance: ' + str("%.2f" % data.performance) + '% in n = ' + str("%.0f" % data.nr_trials) + ' trials vs RTC'
+               data.fiber_side + ', protocol: ' + data.protocol + data.protocol_info + ', performance: ' + str("%.2f" % data.performance) + '% in n = ' + str("%.0f" % data.nr_trials) + ' trials vs ' + curr_label
 
     axs[0, 0].text(x_range[0]-2.8, y_range[1]+0.5, text, fontsize=8)
 
@@ -504,21 +510,17 @@ def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, err
 
 
 
-
-
-
-
 # function by YJ to analyse a single session of a single mouse
 
 if __name__ == '__main__':
-    mice = ['T13'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
-    dates = ['20231106'] # ['20230922'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
+    mice = ['TS32'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
+    dates = ['20231127'] # ['20230922'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
     recording_site = 'TS'
     fiber_side = 'right'
-    exclude_protocols = ['psychometric','large','Large']
+    exclude_protocols = ['psychometric','LRO']
 
     # --------------------------------------
-    plot = 1
+    plot = 1 # 1: SingleSession, 2: Random_Tone_Clouds, 3: CueResponses_DMS_vs_TS, 4: TimeSeries, 5: Random_WN
     # --------------------------------------
 
     all_experiments = get_all_experimental_records()
@@ -561,6 +563,7 @@ if __name__ == '__main__':
             df_data_files = [file for file in files_in_path if search_df_data in file]
 
             nr_files = len(trial_data_files)
+
             for i in range(0,nr_files):
                 trial_data_name = trial_data_files[i]
                 trial_data = pd.read_pickle(trial_data_path + trial_data_name)
@@ -609,7 +612,7 @@ if __name__ == '__main__':
 
             experiments = all_experiments[(all_experiments['mouse_id'] == mouse) & (all_experiments['fiber_side'] == fiber_side) &
                                           (all_experiments['recording_site'] == recording_site) & (all_experiments['include'] != 'no')]
-            #experiments = experiments[~experiments['experiment_notes'].isin(exclude_protocols)]
+
             n_exp = len(experiments)
 
             excl_date = []
@@ -623,6 +626,7 @@ if __name__ == '__main__':
 
             for j in excl_date:
                 experiments = experiments[experiments['date'] != j]
+                print(j)
 
             n_exp = len(experiments)
             print('Number of experiments: ' + str(n_exp))
@@ -681,11 +685,12 @@ if __name__ == '__main__':
 
                             box = axs[p_row][col].get_position()
                             axs[p_row][col].set_position([box.x0, box.y0, box.width * 0.999, box.height])
-                            axs[p_row][col].text(-2, 2.4, alignement, ha='right', va='top', fontsize=10, color='#0000FF')
+                            axs[p_row][col].text(-2, 2.4, alignement, ha='right', va='top', fontsize=9, color='#0000FF')
                             axs[p_row][2].legend(performances, bbox_to_anchor=(1.1, 0.4), frameon=False, fontsize=8)
+                            axs[p_row][col].axvline(0, color='#808080', linewidth=0.5, ls='dashed')
                             #axs[p_row][0].legend(performances, loc="upper left", frameon=False, fontsize=8)
                             axs[p_row][0].text(-2, 2.8, mouse + ': ' + recording_site + fiber_side + ', n = ' + str(n_exp),
-                                           ha='center', va='center', fontsize=12)
+                                           ha='center', va='center', fontsize=10)
 
             plt.setp(axs, yticks=[-1, 0, 1, 2], xticks=[-2, 0, 2])
         plt.show()
@@ -693,3 +698,43 @@ if __name__ == '__main__':
         canvas = FigureCanvasSVG(fig)
         with PdfPages(main_directory + 'YJ_results\\' + 'TimeSeries_' + recording_site + fiber_side + '.pdf') as pdf:
             pdf.savefig(fig, transparent=True, bbox_inches="tight", dpi=600)
+
+
+
+    if plot == 5:
+        print('Random_WN')
+        protocol = 'Random_WN'
+        for mouse in mice:
+            trial_data_path = main_directory + 'processed_data\\' + mouse + '\\'
+            search_trial_data = '_RWN_restructured_data.pkl'
+            search_df_data = '_RWN_smoothed_signal.npy'
+            files_in_path = os.listdir(trial_data_path)
+            trial_data_files = [file for file in files_in_path if search_trial_data in file]
+            df_data_files = [file for file in files_in_path if search_df_data in file]
+
+            nr_files = len(trial_data_files)
+
+            for i in range(0, nr_files):
+                trial_data_name = trial_data_files[i]
+                trial_data = pd.read_pickle(trial_data_path + trial_data_name)
+                #print(trial_data['Sound type'].unique())
+                df_name = df_data_files[i]
+                df = np.load(trial_data_path + df_name)
+
+                date = df_data_files[i].split('_')[1]
+                # get movement signal from same day session:
+                experiment = all_experiments[
+                    (all_experiments['date'] == date) & (all_experiments['mouse_id'] == mouse)]
+                fiber_side = experiment['fiber_side'].values[0]
+                recording_site = experiment['recording_site'].values[0]
+                data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)
+
+                print(mouse + '_' + date + '_' + data.protocol + '_&_Random_White_Noise')
+                figure = heat_map_and_mean_SingleSession_RTC(data, trial_data, df, error_bar_method='sem', sort=True,
+                                                             x_range=[-2, 3], white_dot='default')
+                canvas = FigureCanvasSVG(figure)
+                text = mouse + '_' + date + '_' + recording_site + '_' + fiber_side + '_RWN_vs_' + data.protocol
+                with PdfPages(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.pdf') as pdf:
+                    pdf.savefig(figure, transparent=True, bbox_inches="tight", dpi=600)
+
+                plt.show()
