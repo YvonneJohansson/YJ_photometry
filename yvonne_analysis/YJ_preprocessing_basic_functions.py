@@ -5,6 +5,7 @@ import nptdms
 import numpy as np
 import math
 import scipy.io
+import scipy.signal
 
 sys.path.insert(1, 'C:\\Users\\Yvonne\\Documents\\freely_moving_photometry_analysis')
 

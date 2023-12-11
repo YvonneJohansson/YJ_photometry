@@ -1,4 +1,3 @@
-
 from YJ_preprocessing_basic_functions import *
 
 
@@ -8,15 +7,15 @@ if __name__ == "__main__":
     saving_folder_path = 'Z:\\users\\Yvonne\\photometry_2AC\\'
 
     #mouse_ids = ['SNL_photo21','SNL_photo22','SNL_photo23','SNL_photo24','SNL_photo25','SNL_photo26']
-    mouse_ids = ['T16'] #TS21 TS18_30
+    mouse_ids = ['TS32'] #TS21 TS18_30
 
-    dates = ['20231130']
+    dates = ['20231128']
 
 
     #force_protocol = 'Random_Tone_Clouds'
     #force_protocol = 'Random_WN'
-    force_protocol = 'Airpuff'
-    #force_protocol = ''
+    #force_protocol = 'Airpuff'
+    force_protocol = ''
 
 
     for date in dates:
