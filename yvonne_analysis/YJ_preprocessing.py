@@ -1,9 +1,5 @@
 
-
-
-
-
-
+from YJ_preprocessing_basic_functions import *
 
 
 if __name__ == "__main__":
@@ -14,7 +10,7 @@ if __name__ == "__main__":
     #mouse_ids = ['SNL_photo21','SNL_photo22','SNL_photo23','SNL_photo24','SNL_photo25','SNL_photo26']
     mouse_ids = ['T16'] #TS21 TS18_30
 
-    dates = ['20231130'] #['20230511','20230512','20230513','20230514']
+    dates = ['20231130']
 
 
     #force_protocol = 'Random_Tone_Clouds'
