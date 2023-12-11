@@ -98,7 +98,7 @@ def pre_process_experiment_lerner_deissroth(mouse, date, protocol, folder_path, 
     else: # standard analysis
         restructured_data = restructure_bpod_timestamps(loaded_bpod_file, trial_start_ttls_daq, clock_pulses)
 
-    saving_folder = folder_path + 'processed_data\\' + mouse + '\\'
+
 
 
     if protocol is 'Random_Tone_Clouds':
@@ -120,7 +120,10 @@ def pre_process_experiment_lerner_deissroth(mouse, date, protocol, folder_path, 
     else:
         restructured_data_filename = mouse + '_' + date + '_' + 'restructured_data.pkl'
 
-
+    # save output:
+    saving_folder = folder_path + 'processed_data\\' + mouse + '\\'
+    if not os.path.exists(saving_folder):
+        os.makedirs(saving_folder)
     np.save(saving_folder + smoothed_trace_filename, df)
     restructured_data.to_pickle(saving_folder + restructured_data_filename)
 
