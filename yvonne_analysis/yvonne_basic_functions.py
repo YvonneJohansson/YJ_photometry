@@ -543,6 +543,49 @@ class SORRewardAlignedData(object):
 
 
 
+
+class ZScoredTraces_Airpuff(object):
+    def __init__(self, trial_data, df, x_range):
+        self.trial_data = trial_data
+        self.df = df
+        self.x_range = x_range
+        self.shortAirpuff = shortAirpuff(self)
+        self.longAirpuff = longAirpuff(self)
+
+
+class shortAirpuff(object):
+    def __init__(self, ZScoredTraces_Airpuff):
+        # 1 short airpuffs (close to 0.2s but in fact slightly shorter!! e.g. 0.1999999999999993)
+        s_events_of_int = ZScoredTraces_Airpuff.trial_data.loc[(ZScoredTraces_Airpuff.trial_data['State type'] == 2) & (ZScoredTraces_Airpuff.trial_data['Duration'] <= 0.2) ] # state type 2 = puffdelivery
+        s_event_times = s_events_of_int['Time start'].values
+        s_event_photo_traces = get_photometry_around_event(s_event_times, ZScoredTraces_Airpuff.df, pre_window=5, post_window=5)
+        s_norm_traces = stats.zscore(s_event_photo_traces.T, axis=0)
+        s_sorted_traces = s_norm_traces.T
+        s_x_vals = np.linspace(ZScoredTraces_Airpuff.x_range[0],ZScoredTraces_Airpuff.x_range[1], s_norm_traces.shape[0], endpoint=True, retstep=False, dtype=None, axis=0)
+        s_y_vals = np.mean(s_sorted_traces, axis=0)
+        self.sorted_traces = s_sorted_traces
+        self.mean_trace = s_y_vals
+        self.time_points = s_x_vals
+        self.params = RTC_params(ZScoredTraces_Airpuff.x_range)
+        self.reaction_times = None
+class longAirpuff(object):
+    def __init__(self, ZScoredTraces_Airpuff):
+        # 2. long airpuffs (0.5s exactly)
+        l_events_of_int = ZScoredTraces_Airpuff.trial_data.loc[(ZScoredTraces_Airpuff.trial_data['State type'] == 2) & (ZScoredTraces_Airpuff.trial_data['Duration'] == 0.5) ] # state type 2 = puffdelivery
+        l_event_times = l_events_of_int['Time start'].values
+        l_event_photo_traces = get_photometry_around_event(l_event_times, ZScoredTraces_Airpuff.df, pre_window=5, post_window=5)
+        l_norm_traces = stats.zscore(l_event_photo_traces.T, axis=0)
+        l_sorted_traces = l_norm_traces.T
+        l_x_vals = np.linspace(ZScoredTraces_Airpuff.x_range[0],ZScoredTraces_Airpuff.x_range[1], l_norm_traces.shape[0], endpoint=True, retstep=False, dtype=None, axis=0)
+        l_y_vals = np.mean(l_sorted_traces, axis=0)
+        self.sorted_traces = l_sorted_traces
+        self.mean_trace = l_y_vals
+        self.time_points = l_x_vals
+        self.params = RTC_params(ZScoredTraces_Airpuff.x_range)
+        self.reaction_times = None
+
+
+
 class ZScoredTraces_RTC(object):
     def __init__(self, trial_data, df, x_range):
         events_of_int = trial_data.loc[(trial_data['State type'] == 2)]  # cue = state type 2
