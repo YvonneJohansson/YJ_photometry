@@ -112,6 +112,9 @@ def plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_met
     time_points = decimate(one_side_data.time_points, 10)
     traces = decimate(one_side_data.sorted_traces, 10)
 
+    if np.max(mean_trace) > y_range[1]:
+        y_range = (y_range[0], np.ceil(np.max(mean_trace)))
+
     if traces.shape[0] > 1: # plotting only works if there is more than one trace
 
         if y_label == 'SOR Contra ':
@@ -406,7 +409,6 @@ def heat_map_and_mean_SingleSession_ExtraSession(Session_data, Extra_trial_data,
     if extra_session == 'Airpuff':
         rows = 3
         height = 8.25
-        print('Airpuff, rows: ' + str(rows))
 
 
     fig, axs = plt.subplots(nrows=rows, ncols=2, figsize=(5.5, height))  # width, height
