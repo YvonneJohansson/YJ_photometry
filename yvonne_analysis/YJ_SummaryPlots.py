@@ -14,9 +14,9 @@ if __name__ == '__main__':
 
     main_directory = 'Z:\\users\\Yvonne\\photometry_2AC\\'
     all_experiments = get_all_experimental_records()
-    plot = 'RTC_group_plot'
+    #plot = 'RTC_group_plot'
     #plot = 'SOR_group_plot'
-    #plot = 'APE_group_plot'
+    plot = 'APE_group_plot'
 
     if plot == 'RTC_group_plot':
         mice = ['TS3','TS20','TS21','TS26','TS33'] # 'TS29_20230927', TS34_20231102
@@ -496,6 +496,10 @@ if __name__ == '__main__':
                 elif alignement is 'reward':
                     # correct trials:
                     correct_traces = np.concatenate((curr_data.contra_data.sorted_traces, curr_data.ipsi_data.sorted_traces), axis=0)
+
+                    print(curr_data.contra_data.sorted_traces.shape[0])
+                    print(curr_data.ipsi_data.sorted_traces.shape[0])
+                    print(correct_traces.shape[0])
                     curr_data_correct_mean = decimate(np.mean(correct_traces, axis=0), 10)
                     curr_data_correct_time = decimate(curr_data.contra_data.time_points, 10) # time points are always the same, no matter ipsi / contra / in/correct
                     curr_data_correct_traces = decimate(correct_traces, 10)
@@ -521,10 +525,8 @@ if __name__ == '__main__':
                         #                                                                          error_bar_method='sem')
                     all_group_data[alignement + '_incorrect'].append(curr_data_incorrect_mean)
 
-
-
-
-
+       #all_group_data = {'cue_contra': [], 'cue_ipsi': [], 'choice_contra': [], 'choice_ipsi': [], 'reward_correct': [],
+        #                 'reward_incorrect': []}
 
        # plot data:
        fig1.tight_layout(pad=4)
