@@ -600,6 +600,7 @@ class ZScoredTraces_RTC(object):
         self.time_points = x_vals
         self.params = RTC_params(x_range)
         self.reaction_times = None
+        self.events_of_int = events_of_int
         #self.params.plot_range = x_range
 
 class RTC_params(object):
