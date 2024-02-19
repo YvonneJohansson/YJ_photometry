@@ -14,9 +14,10 @@ if __name__ == '__main__':
 
     main_directory = 'Z:\\users\\Yvonne\\photometry_2AC\\'
     all_experiments = get_all_experimental_records()
-    #plot = 'RTC_group_plot'
+    plot = 'RTC_group_plot'
     #plot = 'SOR_group_plot'
-    plot = 'APE_group_plot'
+    #plot = 'APE_group_plot'
+    plot = 'RWN_group_plot'
 
     if plot == 'RTC_group_plot':
         mice = ['TS3','TS20','TS21','TS26','TS33'] # 'TS29_20230927', TS34_20231102
@@ -43,7 +44,7 @@ if __name__ == '__main__':
             recording_site = experiment['recording_site'].values[0]
             data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)
 
-            #print(mouse + '_' + date + '_' + data.protocol + '_&_Random_Tone_Clouds')
+            print(mouse + '_' + date + '_' + data.protocol + '_&_Random_Tone_Clouds. Performance: ' + str(data.performance))
 
 
             if data.protocol == 'SOR':
@@ -197,6 +198,170 @@ if __name__ == '__main__':
 
     # ------------------------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
+
+    if plot == 'RWN_group_plot':
+        # 'TS29_20230927', TS34_20231102
+
+
+        # First WN session, meaningless because no photometry signal, on request of marcus:
+        mice = ['TS32','TS33','TS34']
+        dates = ['20231117', '20231116','20231117']
+
+        # Cell paper:
+        mice = ['TS32','TS33','TS34']
+        dates = ['20231128','20231128','20231128']
+
+        x_range = [-2, 3]
+        y_range = [-1, 1]
+        performances = []
+        trial_numbers = []
+        for i, mouse in enumerate(mice):
+            print(mouse)
+            nr_mice = len(mice)
+            date = dates[i]
+            trial_data_path = main_directory + 'processed_data\\' + mouse + '\\'
+            # get RWN data:
+            search_trial_data = mouse + '_' + dates[i] + '_RWN_restructured_data.pkl'
+            search_df_data = mouse + '_' + dates[i] + '_RWN_smoothed_signal.npy'
+            files_in_path = os.listdir(trial_data_path)
+            trial_data_file = [file for file in files_in_path if search_trial_data in file][0]
+            df_data_file = [file for file in files_in_path if search_df_data in file][0]
+            RWN_trial_data = pd.read_pickle(trial_data_path + trial_data_file)
+            RWN_df = np.load(trial_data_path + df_data_file)
+            RWN_data = ZScoredTraces_RTC(RWN_trial_data, RWN_df, x_range)
+            trial_numbers.append(RWN_data.events_of_int.shape[0])
+            # get movement signal from same day session:
+            experiment = all_experiments[
+                (all_experiments['date'] == date) & (all_experiments['mouse_id'] == mouse)]
+            fiber_side = experiment['fiber_side'].values[0]
+            recording_site = experiment['recording_site'].values[0]
+            data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)
+            performances.append(data.performance)
+
+            print(mouse + '_' + date + '_' + data.protocol + '_&_Random_WhiteNoise. Performance: ' + str("%.2f" % (data.performance)) + "%, Trial # " + str("%.2f" % (RWN_data.events_of_int.shape[0])))
+
+
+            if data.protocol == 'SOR':
+                APE_aligned_data = decimate(data.SOR_choice.contra_data.mean_trace, 10)
+                APE_time = decimate(data.SOR_choice.contra_data.time_points, 10)
+            else:
+                APE_aligned_data = decimate(data.choice.contra_data.mean_trace, 10)
+                APE_time = decimate(data.choice.contra_data.time_points,10)
+            RWN_aligned_data = decimate(RWN_data.mean_trace, 10)
+            RWN_time = decimate(RWN_data.time_points, 10)
+
+            if i == 0:
+                APE_traces = np.zeros((nr_mice, len(APE_aligned_data)))
+                RWN_traces = np.zeros((nr_mice, len(RWN_aligned_data)))
+                APE_sem_traces_upper = np.zeros((nr_mice, len(APE_aligned_data)))
+                APE_sem_traces_lower = np.zeros((nr_mice, len(APE_aligned_data)))
+                RWN_sem_traces_upper = np.zeros((nr_mice, len(RWN_aligned_data)))
+                RWN_sem_traces_lower = np.zeros((nr_mice, len(RWN_aligned_data)))
+                APE_peak_values = []
+                RWN_peak_values = []
+
+
+
+            APE_traces[i,:] = APE_aligned_data
+            APE_sem_traces = decimate(data.choice.contra_data.sorted_traces,10)
+            APE_sem_traces_lower[i,:], APE_sem_traces_upper[i,:] = calculate_error_bars(APE_aligned_data, APE_sem_traces,
+                                                                    error_bar_method='sem')
+            RWN_traces[i,:] = RWN_aligned_data
+            RWN_sem_traces = decimate(RWN_data.sorted_traces,10)
+            RWN_sem_traces_lower[i,:], RWN_sem_traces_upper[i,:] = calculate_error_bars(RWN_aligned_data, RWN_sem_traces,
+                                                                    error_bar_method='sem')
+            # get the peak values:   # APE_time: 16000 datapoints, half: 8000 datapoints = time 0, only consider time after 0
+            start_inx = 8000
+            APE_range = APE_aligned_data[start_inx:start_inx+8000]
+            APE_time_range = APE_time[start_inx:start_inx+8000]
+            RWN_range = RWN_aligned_data[start_inx:start_inx+8000]
+
+            APE_peak_index = np.argmax(APE_range) # from time 0 to 8s
+            APE_peak_time = APE_time_range[APE_peak_index]
+            APE_peak_value = APE_range[APE_peak_index]
+
+            #print("peak index of APE: " + str(APE_peak_index))
+
+            if APE_peak_index > len(RWN_range): # if there is no APE peak, the max could be really late in the trace, outside of the RWN_range
+                RWN_peak_value = RWN_range.mean()
+            else: # this is the normal case, APE peaks relatively soon, within the range of RWN data points
+                RWN_peak_value = RWN_range[APE_peak_index]
+
+            #print('Index: ' + str(APE_peak_index) + ', value: ' + str(APE_peak_value) + ', time: ' + str(APE_peak_time))
+
+            APE_peak_values.append(APE_peak_value)
+            RWN_peak_values.append(RWN_peak_value)
+
+        # calculate mean and sem across mice:
+        APE_mean_trace = np.mean(APE_traces, axis=0)
+        RWN_mean_trace = np.mean(RWN_traces, axis=0)
+        APE_sem_trace = np.std(APE_traces, axis=0)/np.sqrt(nr_mice)
+        RWN_sem_trace = np.std(RWN_traces, axis=0)/np.sqrt(nr_mice)
+
+        print('trial numbers: ' + str("%.2f" % np.mean(trial_numbers)) + ' +/- ' + str("%.2f" % (np.std(trial_numbers) / np.sqrt(nr_mice))))
+        print('performance: ' + str("%.2f" % np.mean(performances)) + ' +/- ' + str("%.2f" % (np.std(performances) / np.sqrt(nr_mice))))
+
+        # plot:
+            #colors = plt.cm.viridis(np.linspace(0, 1, 2))
+        fig, ax = plt.subplots(2, 1, figsize=(3, 5))
+        ax[0].axvline(0, color='#808080', linewidth=0.25, linestyle='dashdot')
+        ax[0].plot(APE_time, APE_mean_trace, lw=2, color='#3F888F')
+        ax[0].fill_between(APE_time, APE_mean_trace - APE_sem_trace, APE_mean_trace + APE_sem_trace, color='#7FB5B5', linewidth=1, alpha=1)
+        ax[1].axvline(0, color='#808080', linewidth=0.25, linestyle='dashdot')
+        ax[1].plot(RWN_time, RWN_mean_trace, lw=2, color='#e377c2')
+        ax[1].fill_between(RWN_time, RWN_mean_trace - RWN_sem_trace, RWN_mean_trace + RWN_sem_trace, facecolor='#e377c2', linewidth=1, alpha=0.3)
+        ax[0].text(2, 0.9, 'n = ' + str(nr_mice) + ' mice', fontsize=7)
+        title = ['APE', 'RWN']
+        for n, a in enumerate(ax):
+            a.spines['top'].set_visible(False)
+            a.spines['right'].set_visible(False)
+
+            a.set_ylim(y_range)
+            a.set_ylabel('Z-scored dF/F')
+            a.set_xlabel('Time (s)')
+            a.set_xlim(x_range)
+            a.yaxis.set_ticks([-0.5, 0, 0.5, 1])
+            a.set_title('  ' + title[n], fontsize=12, loc='left')
+            #a.tick_params(axis='both', which='both', length=0)
+
+        plt.tight_layout()
+        plt.savefig(main_directory + 'YJ_SummaryPlots\\' + 'APE_vs_RWN_group_plot.pdf', dpi=300, transparent=True)
+        plt.savefig(main_directory + 'YJ_SummaryPlots\\' + 'APE_vs_RWN_group_plot.png', dpi=300, transparent=True)
+        plt.show()
+
+        # dotplot
+        fig, ax = plt.subplots(1, 1, figsize=(2, 3))  # width, height
+        print('APE peak values: ' + str(APE_peak_values))
+        print('RWN peak values: ' + str(RWN_peak_values))
+
+        mean_peak_values = [np.mean(APE_peak_values), np.mean(RWN_peak_values)]
+        sem_peak_values = [np.std(APE_peak_values) / np.sqrt(len(APE_peak_values)),
+                           np.std(RWN_peak_values) / np.sqrt(len(RWN_peak_values))]
+        for i in range(0, len(APE_peak_values)):
+            x_val = [0, 1]
+            y_val = [APE_peak_values[i], RWN_peak_values[i]]
+            ax.plot(x_val, y_val, color='#3F888F', linewidth=0.5, marker='o', markersize=10)
+            # ax.scatter(x_val, y_val, color='#3F888F', s=10)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            # ax.set_xticks([0, 1], labels=["APE", "RTC"])
+
+        ax.plot(x_val, mean_peak_values, color='r', linewidth=1, marker='o', markersize=10)
+        ax.plot([0, 0], [mean_peak_values[0] + sem_peak_values[0], mean_peak_values[0] - sem_peak_values[0]], color='r',
+                linewidth=1)
+        ax.plot([1, 1], [mean_peak_values[1] + sem_peak_values[1], mean_peak_values[1] - sem_peak_values[1]], color='r',
+                linewidth=1)
+
+        ax.set_xticks([0, 1])
+        ax.set_ylabel('Z-scored dF/F')
+        ax.set_xlim(-0.2, 1.2)
+        ax.set_ylim(-1,1)
+        ax.yaxis.set_ticks([-1, 0, 1])
+        fig.tight_layout(pad=2)
+        plt.savefig(main_directory + 'YJ_SummaryPlots\\' + 'APE_vs_RWN_group_plot_all_mice_dotplot.pdf', dpi=300,
+                    transparent=True)
+        plt.show()
+
 
     if plot == 'SOR_group_plot':
         print(plot)
