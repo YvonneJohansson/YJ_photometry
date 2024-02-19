@@ -541,14 +541,14 @@ def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, err
 # function by YJ to analyse a single session of a single mouse
 
 if __name__ == '__main__':
-    mice = ['T16'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
-    dates = ['20231130'] # ['20230922'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
+    mice = ['TS26'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
+    dates = ['20231004'] # ['20230922'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
     recording_site = 'TS'
     fiber_side = 'right'
     exclude_protocols = ['psychometric','LRO']
 
     # --------------------------------------
-    plot = 6 # 1: SingleSession, 2: Random_Tone_Clouds, 3: CueResponses_DMS_vs_TS, 4: TimeSeries, 5: Random_WN, 6: Airpuff
+    plot = 1 # 1: SingleSession, 2: Random_Tone_Clouds, 3: CueResponses_DMS_vs_TS, 4: TimeSeries, 5: Random_WN, 6: Airpuff
     # --------------------------------------
 
     all_experiments = get_all_experimental_records()
