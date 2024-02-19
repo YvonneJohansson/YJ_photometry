@@ -14,9 +14,9 @@ main_directory = 'Z:\\users\\Yvonne\\photometry_2AC\\'
 # function by YJ to analyse a single session of a single mouse
 
 if __name__ == '__main__':
-    mice = ['T16'] #,'T5','T9'] #['TS17']
+    mice = ['TS26'] #,'T5','T9'] #['TS17']
 
-    dates = ['20231130'] # '20230814'] #,'2 # '20230511', '20230512', '20230513', '20230510', '20230511','20230512'
+    dates = ['20231004'] # '20230814'] #,'2 # '20230511', '20230512', '20230513', '20230510', '20230511','20230512'
 
 
 
