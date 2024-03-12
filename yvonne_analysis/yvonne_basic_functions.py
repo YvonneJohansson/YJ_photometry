@@ -25,6 +25,7 @@ def analyse_this_experiment(experiment_to_process, main_dir, debug=False):
             session_traces = SessionData(experiment['mouse_id'], experiment['date'], experiment['fiber_side'], experiment['recording_site'], main_dir, debug=False)
             filename = experiment['mouse_id'] + '_' + experiment['date'] + '_' + experiment['fiber_side'] + '_' + experiment['recording_site'] + '_aligned_traces.p'
             save_filename = os.path.join(saving_folder, filename)
+            print(save_filename)
             pickle.dump(session_traces, open(save_filename, "wb"))
             return session_traces
         except OSError:
@@ -32,6 +33,7 @@ def analyse_this_experiment(experiment_to_process, main_dir, debug=False):
 def get_SessionData(directory, mouse, date, fiber_side, location):
     folder = directory + 'YJ_results\\' + mouse + '\\'
     aligned_filename = folder + mouse + '_' + date + '_' + fiber_side + '_' + location + '_' + 'aligned_traces.p'
+    #print('Now loading: ' + aligned_filename)
     with open(aligned_filename, 'rb') as f:
         data = pickle.load(f)
     return data
@@ -68,6 +70,23 @@ def getNonSORtrials(trial_data):
         if include == 0:
             trial_data_2AC = trial_data_2AC[trial_data_2AC['Trial num'] != trial_all]
     return trial_data_2AC
+
+def getNonSilenceTrials(trial_data):
+    total_trials = len(trial_data['Trial num'].unique())
+    trials_2AC = trial_data[trial_data['State name'] == 'WaitForPoke']
+    trial_num_2AC = len(trials_2AC['Trial num'].unique())
+    if trial_num_2AC == total_trials: # This is not a Sound-On-Return session
+        trial_data_NonSilence = trial_data
+        trial_data_NonSilence = trial_data_NonSilence[trial_data_NonSilence['Sound type'] != 1]
+        new_trial_num = trial_data_NonSilence['Trial num'].unique()
+        if len(new_trial_num) < total_trials:
+            print('               >> non-silent trials ' + str(len(new_trial_num)) + ' out of ' + str(total_trials) + ' trials')
+            if len(trial_data_NonSilence['Sound type'].unique()) > 1:
+                print('remaining sound types: ' + str(trial_data_NonSilence['Sound type'].unique()))
+
+    else:
+        trial_data_NonSilence = trial_data
+    return trial_data_NonSilence
 
 def getNonPsychotrials(trial_data):
     for sound_number in [2, 3, 4, 5, 6]:
@@ -201,7 +220,7 @@ def getPerformance(session_data):
             correct_trials = total_trials - wrong_trials
             performance = correct_trials / total_trials * 100
         else:
-            correct_trial_data = trial_data[trial_data['First choice correct']==1]
+            correct_trial_data = trial_data[trial_data['First choice correct'] == 1]
             correct_trials = len(correct_trial_data['Trial num'].unique())
             performance = correct_trials / total_trials * 100
         return performance, total_trials
@@ -284,12 +303,14 @@ class ChoiceAlignedData(object):
             'LRO': 0, # 1 = nonLRO; else doesn't matter
             'LargeRewards': 0, # 1 = LR
             'Omissions': 0, # 1 = Omission
+            'Silence':2,    # 1 = Silent trials only
             'cue': None}
 
-
+        print('IPSI:' + str(ipsi_fiber_side_numeric))
         self.ipsi_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric, curr_run='')
         self.ipsi_data.get_peaks(save_traces=save_traces)
         curr_run = 'choice aligned'
+        print('CONTRA:' + str(contra_fiber_side_numeric))
         self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
         self.contra_data.get_peaks(save_traces=save_traces)
 
@@ -320,6 +341,7 @@ class CueAlignedData(object):
             'LargeRewards': 0,
             'Omissions': 0,
             'LRO': 0,
+            'Silence': 0,  # 1 = Silent trials only
             'cue': None}
 
 
@@ -368,6 +390,7 @@ class RewardAlignedData(object):
                   'LargeRewards': 0,
                   'Omissions': 0,
                   'LRO': 1,     #1 = exclude LRO = large reward Omissions: >> separate those trials from regular rewards at all times.
+                  'Silence': 0,  # 1 = Silent trials only
                   'cue': 'None'}
 
         curr_run = 'reward aligned'
@@ -388,6 +411,7 @@ class RewardAlignedData(object):
                   'LargeRewards': 0,
                   'Omissions': 0,
                   'LRO': 1,
+                  'Silence': 0,  # 1 = Silent trials only
                   # exclude LRO = large reward Omissions: >> separate those trials from regular rewards at all times.
                   'cue': 'None'}
         curr_run = 'reward aligned_incorrect'
@@ -412,6 +436,7 @@ class RewardAlignedData(object):
                           'LRO': 0,
                           'LargeRewards': 1,
                           'Omissions': 0,
+                          'Silence': 0,  # 1 = Silent trials only
                           'cue': 'None'}
 
                 curr_run = 'LRO / LargeRewards'
@@ -434,6 +459,7 @@ class RewardAlignedData(object):
                       'LRO': 0,
                       'LargeRewards': 0,
                       'Omissions': 1,
+                      'Silence': 0,  # 1 = Silent trials only
                       'cue': 'None'}
 
                 curr_run = 'LRO / Omissions'
@@ -469,6 +495,7 @@ class SORChoiceAlignedData(object):
             'LRO': 0,
             'LargeRewards': 0,
             'Omissions': 0,
+            'Silence': 0,  # 1 = Silent trials only
             'cue': None}
 
         curr_run = 'SOR choice aligned'
@@ -504,6 +531,7 @@ class SORCueAlignedData(object):
             'LRO': 0,
             'LargeRewards': 0,
             'Omissions': 0,
+            'Silence': 0,  # 1 = Silent trials only
             'cue': None}
 
         curr_run = 'SOR cue aligned'
@@ -535,6 +563,7 @@ class SORRewardAlignedData(object):
                   'LRO': 0,
                   'LargeRewards': 0,
                   'Omissions': 0,
+                  'Silence': 0,  # 1 = Silent trials only
                   'cue': 'None'}
 
         curr_run = 'SOR reward aligned'
@@ -694,6 +723,7 @@ class HeatMapParams(object):
         self.LRO = params['LRO']
         self.LR = params['LargeRewards']
         self.O = params['Omissions']
+        self.S = params['Silence']
 
 
 def get_next_centre_poke(trial_data, events_of_int, last_trial):
@@ -814,6 +844,9 @@ def find_and_z_score_traces(trial_data, dff, params, curr_run, norm_window=8, so
     # 12 = large reward "LeftLargeReward
     # 13 = large reward "RightLargeReward"
 
+
+    print('total nr trials: ' + str(len(trial_data['Trial num'].unique())) + ' for ' + curr_run)
+
     if params.state == 5.5:
         print('ERROR: code (find_and_z_score_traces) not adjusted for state 5.5!!! Either first incorrect choice or xxx')
     # --------------
@@ -825,6 +858,7 @@ def find_and_z_score_traces(trial_data, dff, params, curr_run, norm_window=8, so
         events_of_int = trial_data
 
     curr_nr_trials = events_of_int.shape[0]
+
 
     if params.psycho == 0:
         events_of_int = getNonPsychotrials(events_of_int)
@@ -839,7 +873,7 @@ def find_and_z_score_traces(trial_data, dff, params, curr_run, norm_window=8, so
         events_of_int = getLargeRewardtrials(events_of_int)
     if params.O == 1:
         events_of_int = getOmissiontrials(events_of_int)
-    if params.LRO == 1:
+    if params.LRO == 1:  #better to have as 0? used 0 in public online version!!
         events_of_int = getNonLROtrials(events_of_int)
 
     if events_of_int.shape[0] < curr_nr_trials:
@@ -847,9 +881,18 @@ def find_and_z_score_traces(trial_data, dff, params, curr_run, norm_window=8, so
             print('    > LRO selection from ' + str(curr_nr_trials) + ' to ' + str(events_of_int.shape[0]) + ' trials for ' + curr_run)
         curr_nr_trials = events_of_int.shape[0]
 
+
+    if params.S == 0:
+        events_of_int = getNonSilenceTrials(events_of_int)
+        if len(curr_run) > 3:
+            print('    > NonSilent selection from ' + str(curr_nr_trials) + ' to ' + str(events_of_int.shape[0]) + ' trials for ' + curr_run)
+        curr_nr_trials = events_of_int.shape[0]
+
     if events_of_int.empty:
-        print ('No trials found after selection of SOR, LR, O, LRO')
+        print ('No trials found after selection of SOR, LR, O, LRO, S (Silence)')
         print(params)
+
+
 
     # 1) State type (e.g. corresp. State name = CueDelay, WaitforResponse...)
     events_of_int = events_of_int.loc[(events_of_int['State type'] == params.state)]  # State type = number of state of interest, typically 3 or 5
