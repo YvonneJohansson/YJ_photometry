@@ -17,11 +17,12 @@ if __name__ == '__main__':
     plot = 'RTC_group_plot'
     #plot = 'SOR_group_plot'
     #plot = 'APE_group_plot'
-    plot = 'RWN_group_plot'
+    #plot = 'RWN_group_plot'
 
     if plot == 'RTC_group_plot':
         mice = ['TS3','TS20','TS21','TS26','TS33'] # 'TS29_20230927', TS34_20231102
         dates = ['20230203','20230512','20230510','20230929','20231106']
+
         x_range = [-2, 3]
         y_range = [-0.5, 1]
         for i, mouse in enumerate(mice):
