@@ -303,7 +303,7 @@ class ChoiceAlignedData(object):
             'LRO': 0, # 1 = nonLRO; else doesn't matter
             'LargeRewards': 0, # 1 = LR
             'Omissions': 0, # 1 = Omission
-            'Silence':2,    # 1 = Silent trials only
+            'Silence':0,    # 1 = Silent trials only, but code not written yet (only non-silent trials code available)
             'cue': None}
 
         print('IPSI:' + str(ipsi_fiber_side_numeric))
