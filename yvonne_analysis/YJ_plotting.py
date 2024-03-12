@@ -262,6 +262,10 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
         elif alignement == 'reward':
             aligned_data = SessionData.reward
 
+        if aligned_data.contra_data.mean_trace.shape[0] == 0 or aligned_data.ipsi_data.mean_trace.shape[0] == 0:
+            print('no data for ' + alignement)
+            continue
+
         aligned_data.ipsi_data.params.plot_range = x_range
         aligned_data.contra_data.params.plot_range = x_range
 
@@ -309,6 +313,9 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
         elif alignement == 'reward':
             aligned_data = SessionData.reward
             row = 2
+
+        if aligned_data.contra_data.mean_trace.shape[0] == 0 or aligned_data.ipsi_data.mean_trace.shape[0] == 0:
+            continue
 
         c_column = 0 # contra column for 2AC
         i_column = 2 # ipsi column for 2AC
@@ -541,8 +548,8 @@ def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, err
 # function by YJ to analyse a single session of a single mouse
 
 if __name__ == '__main__':
-    mice = ['TS26'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
-    dates = ['20231004'] # ['20230922'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
+    mice = ['TS21'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
+    dates = ['20230510'] # ['20230922'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
     recording_site = 'TS'
     fiber_side = 'right'
     exclude_protocols = ['psychometric','LRO']
