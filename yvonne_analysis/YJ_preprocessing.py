@@ -7,9 +7,9 @@ if __name__ == "__main__":
     saving_folder_path = 'Z:\\users\\Yvonne\\photometry_2AC\\'
 
     #mouse_ids = ['SNL_photo21','SNL_photo22','SNL_photo23','SNL_photo24','SNL_photo25','SNL_photo26']
-    mouse_ids = ['TS20'] #TS21 TS18_30
+    mouse_ids = ['TS30', 'TS31'] #TS21 TS18_30
 
-    dates = ['20230512']
+    dates = ['20231003']
 
 
     force_protocol = 'Random_Tone_Clouds'

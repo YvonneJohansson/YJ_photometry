@@ -7,6 +7,51 @@ import pickle
 import peakutils
 import scipy.io
 
+
+
+def cohen_d(group1, group2):
+    # Calculate the means of both groups
+    mean1, mean2 = np.mean(group1), np.mean(group2)
+
+    # Calculate the standard deviations of both groups
+    std1, std2 = np.std(group1, ddof=1), np.std(group2, ddof=1)
+
+    # Calculate the pooled standard deviation
+    n1, n2 = len(group1), len(group2)
+    pooled_std = np.sqrt(((n1 - 1) * std1 ** 2 + (n2 - 1) * std2 ** 2) / (n1 + n2 - 2))
+
+    # Calculate Cohen's d
+    d = (mean1 - mean2) / pooled_std
+    print("cohen d: ", d)
+    return d
+
+
+def cohen_d_paired(group1, group2):
+    # Calculate the differences between each pair
+    differences = np.array(group1) - np.array(group2)
+
+    # Calculate the mean of the differences
+    mean_diff = np.mean(differences)
+
+    # Calculate the standard deviation of the differences
+    std_diff = np.std(differences, ddof=1)
+
+    # Calculate Cohen's d for paired samples
+    d = mean_diff / std_diff
+    print("cohen d: ", d)
+    return d
+
+
+def cohen_d_one_sample(data, mu0=0):
+    # Calculate the sample mean and standard deviation
+    mean = np.mean(data)
+    std_dev = np.std(data, ddof=1)
+
+    # Calculate Cohen's d
+    d = (mean - mu0) / std_dev
+    print("cohen d: ", d)
+    return d
+
 def search(df: pd.DataFrame, substring: str, case: bool = False) -> pd.DataFrame:
     mask = np.column_stack([df[col].astype(str).str.contains(substring.lower(), case=case, na=False) for col in df])
     return df.loc[mask.any(axis=1)]
@@ -71,13 +116,43 @@ def getNonSORtrials(trial_data):
             trial_data_2AC = trial_data_2AC[trial_data_2AC['Trial num'] != trial_all]
     return trial_data_2AC
 
+def getReturnCueTrials(trial_data):
+    trialnums_trial_data = trial_data['Trial num'].unique()  # all trial numbers
+    return_trials = trial_data[trial_data['State name'] == 'ReturnCuePlay']
+    return_trial_nums = return_trials['Trial num'].unique()
+    return_cue_trial_data = trial_data
+    for trial in trialnums_trial_data:
+        include = 0
+        for return_trial in return_trial_nums:
+            if trial == return_trial:
+                include = 1
+        if include == 0:
+            return_cue_trial_data = return_cue_trial_data[return_cue_trial_data['Trial num'] != trial]
+    return return_cue_trial_data
+
+def getNoReturnCueTrials(trial_data):
+    trialnums_trial_data = trial_data['Trial num'].unique()  # all trial numbers
+    return_trials = trial_data[trial_data['State name'] == 'ReturnCuePlay']
+    return_trial_nums = return_trials['Trial num'].unique()
+    excl_trials = trial_data[trial_data['State name'] == 'DidNotPokeInTime']['Trial num'].unique()
+    No_return_cue_trial_data = trial_data
+
+    for return_trial in return_trial_nums:
+        No_return_cue_trial_data = No_return_cue_trial_data[No_return_cue_trial_data['Trial num'] != return_trial]
+    for excl_trial in excl_trials:
+        No_return_cue_trial_data = No_return_cue_trial_data[No_return_cue_trial_data['Trial num'] != excl_trial]
+    return No_return_cue_trial_data
+
 def getNonSilenceTrials(trial_data):
     total_trials = len(trial_data['Trial num'].unique())
     trials_2AC = trial_data[trial_data['State name'] == 'WaitForPoke']
     trial_num_2AC = len(trials_2AC['Trial num'].unique())
     if trial_num_2AC == total_trials: # This is not a Sound-On-Return session
         trial_data_NonSilence = trial_data
-        trial_data_NonSilence = trial_data_NonSilence[trial_data_NonSilence['Sound type'] != 1]
+        try:
+            trial_data_NonSilence = trial_data_NonSilence[trial_data_NonSilence['Sound type'] != 1]
+        except KeyError:
+            print('No Sound type column in trial data.')
         new_trial_num = trial_data_NonSilence['Trial num'].unique()
         if len(new_trial_num) < total_trials:
             print('               >> non-silent trials ' + str(len(new_trial_num)) + ' out of ' + str(total_trials) + ' trials')
@@ -209,6 +284,7 @@ def getPerformance(session_data):
     processed_folder = session_data.directory + 'processed_data\\' + session_data.mouse + '\\'
     restructured_filename = session_data.mouse + '_' + session_data.date + '_' + 'restructured_data.pkl'
     try:
+        #print(processed_folder + restructured_filename)
         trial_data = pd.read_pickle(processed_folder + restructured_filename)
         total_trials = np.max(trial_data['Trial num'])+1 #trial 0 is the first trial
         punishment = trial_data[trial_data['State name'] == 'Punish']
@@ -226,6 +302,7 @@ def getPerformance(session_data):
         return performance, total_trials
     except OSError:
         print('No trial data found for ' + session_data.mouse + '_' + session_data.date + '_' + session_data.fiber_side + '_' + session_data.recording_site)
+
 
 
 class SessionData(object):
@@ -263,7 +340,7 @@ class SessionData(object):
                     print(
                         'Processing session: ' + self.mouse + '_' + self.date + '_' + self.fiber_side + '_' + self.recording_site + '_SOR:')
 
-                #self.return_data = ReturnAlignedData(self, save_traces=True)
+
                 self.SOR_choice = SORChoiceAlignedData(self, save_traces=True)
                 if debug == True:
                     print('SOR cue')
@@ -271,6 +348,10 @@ class SessionData(object):
                 if debug == True:
                     print('SOR reward:')
                 self.SOR_reward = SORRewardAlignedData(self, save_traces=True)
+                if debug == True:
+                    print('SOR return movement:')
+                self.SOR_return_cueON = SORCueOnReturnAlignedData(self, save_traces=True)
+                self.SOR_return_cueOFF = SORCueOFFReturnAlignedData(self, save_traces=True)
 
 
 class ChoiceAlignedData(object):
@@ -313,6 +394,17 @@ class ChoiceAlignedData(object):
         print('CONTRA:' + str(contra_fiber_side_numeric))
         self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
         self.contra_data.get_peaks(save_traces=save_traces)
+
+        # NatureRevisions add correct and incorrect trials separately:
+        curr_run = 'choice aligned correct'
+        params['outcome'] = 1
+        self.contra_data.correct = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric,
+                                         curr_run)
+        curr_run = 'choice aligned incorrect'
+        params['outcome'] = 0
+        self.contra_data.incorrect = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
+
+
 
 
 class CueAlignedData(object):
@@ -490,7 +582,7 @@ class SORChoiceAlignedData(object):
             'instance': -1, # last instance
             'plot_range': [-6, 6],
             'first_choice_correct': 2,
-            'SOR': 1,
+            'SOR': 1, # 0 = NonSOR, 1 = SOR, 2 = doesn't matter = trial_data, 3 = return cue trials
             'psycho': 0,
             'LRO': 0,
             'LargeRewards': 0,
@@ -502,9 +594,21 @@ class SORChoiceAlignedData(object):
         self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
         self.contra_data.get_peaks(save_traces=save_traces)
 
+        # NatureRevisions add correct and incorrect trials separately:
+        curr_run = 'SOR choice aligned correct'
+        params['outcome'] = 1
+        self.contra_data.correct = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric,
+                                         curr_run)
+        curr_run = 'choice aligned incorrect'
+        params['outcome'] = 0
+        self.contra_data.incorrect = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
+
+
+
+
 class SORCueAlignedData(object):
     """
-    Traces for SOR analysis: aligned to movement for trials when cue has been played on return already
+    Traces for SOR analysis: aligned to return cue play
     """
     def __init__(self, session_data, save_traces = True):
         processed_folder = session_data.directory + 'processed_data\\' + session_data.mouse + '\\'
@@ -516,8 +620,9 @@ class SORCueAlignedData(object):
         # "RESPONSE": RIGHT = 2, LEFT = 1: hence ipsi and contra need to be assigned accordingly:
         fiber_options = np.array(['left', 'right'])     # left = (0+1) = 1; right = (1+1) == 2
         contra_fiber_side_numeric = (np.where(fiber_options != session_data.fiber_side)[0]+1)[0]    # if fiber on right contra = 1, if fiber on left contra = 2
+        ipsi_fiber_side_numeric = (np.where(fiber_options == session_data.fiber_side)[0] + 1)[0]
 
-        params = {'state_type_of_interest': 10,
+        params = {'state_type_of_interest': 10,     # in SOR state 10 = return cue play, 10 = ReturnCuePlay
             'outcome': 2, # 2 = doesn't matter for choice aligned data
             # 'last_outcome': 0,  # NOT USED CURRENTLY
             'no_repeats' : 1,
@@ -526,7 +631,7 @@ class SORCueAlignedData(object):
             'instance': -1, # last instance
             'plot_range': [-6, 6],
             'first_choice_correct': 2,
-            'SOR': 2,   # 2 = doesn't matter, 1 = SOR trials, 2 = 2AC trials
+            'SOR': 2,   # 0 = NonSOR, 1 = SOR, 2 = doesn't matter = trial_data, 3 = return cue trials
             'psycho': 0,
             'LRO': 0,
             'LargeRewards': 0,
@@ -534,9 +639,93 @@ class SORCueAlignedData(object):
             'Silence': 0,  # 1 = Silent trials only
             'cue': None}
 
-        curr_run = 'SOR cue aligned'
-        self.contra_data = ZScoredTraces(trial_data, dff, params, 0, 0, curr_run) # the cue happens on the trial preceding the SOR trial, hence the side of that trial doesn't matter at all
-        #self.contra_data.get_peaks(save_traces=save_traces)
+        curr_run = 'SOR return cue aligned'
+        # this is return cue aligned data, independent of an ipsi or contra return. aligned to cue onset
+        self.ipsi_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run) # in a contra trial, the return is ipsi
+        self.contra_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric, curr_run)
+
+class SORCueOnReturnAlignedData(object):
+    """
+    Traces for SOR analysis: aligned to return movement as in leaving the side port with and without return cue
+    """
+    def __init__(self, session_data, save_traces=True):
+        processed_folder = session_data.directory + 'processed_data\\' + session_data.mouse + '\\'
+        restructured_filename = session_data.mouse + '_' + session_data.date + '_' + 'restructured_data.pkl'
+        trial_data = pd.read_pickle(processed_folder + restructured_filename)
+        dff_filename = session_data.mouse + '_' + session_data.date + '_' + 'smoothed_signal.npy'
+        dff = np.load(processed_folder + dff_filename)
+
+        # "RESPONSE": RIGHT = 2, LEFT = 1: hence ipsi and contra need to be assigned accordingly:
+        fiber_options = np.array(['left', 'right'])  # left = (0+1) = 1; right = (1+1) == 2
+        contra_fiber_side_numeric = (np.where(fiber_options != session_data.fiber_side)[0] + 1)[
+                    0]  # if fiber on right contra = 1, if fiber on left contra = 2
+        ipsi_fiber_side_numeric = (np.where(fiber_options == session_data.fiber_side)[0] + 1)[0]
+
+        # Return cue ON trials:
+        params = {'state_type_of_interest': 9,  # in SOR state 9 = return cue delay (= end of wait for side port out)
+                  'outcome': 2,  # 2 = doesn't matter for choice aligned data
+                  # 'last_outcome': 0,  # NOT USED CURRENTLY
+                  'no_repeats': 1,
+                  'last_response': 0,  # doesnt matter for choice aligned data
+                  'align_to': 'Time start',
+                  'instance': -1,  # last instance
+                  'plot_range': [-6, 6],
+                  'first_choice_correct': 2,
+                  'SOR': 3,
+                  # 0 = NonSOR, 1 = SOR, 2 = doesn't matter = trial_data, 3 = return cue trials
+                  'psycho': 0,
+                  'LRO': 0,
+                  'LargeRewards': 0,
+                  'Omissions': 0,
+                  'Silence': 0,  # 1 = Silent trials only
+                  'cue': None}
+
+        # this is the return movement for ipsi and contra returns respectively, aligned to side port out, hence movement start (the return cue will only happen 20 ms later).
+        curr_run = 'SOR return movement aligned, cue ON'
+        self.ipsi_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)  # in a contra trial, the return is ipsi
+        self.contra_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric, curr_run) # in an ipsi trial, the return is contra
+
+class SORCueOFFReturnAlignedData(object):
+    """
+    Traces for SOR analysis: aligned to return movement as in leaving the side port with and without return cue
+    """
+
+    def __init__(self, session_data, save_traces=True):
+        processed_folder = session_data.directory + 'processed_data\\' + session_data.mouse + '\\'
+        restructured_filename = session_data.mouse + '_' + session_data.date + '_' + 'restructured_data.pkl'
+        trial_data = pd.read_pickle(processed_folder + restructured_filename)
+        dff_filename = session_data.mouse + '_' + session_data.date + '_' + 'smoothed_signal.npy'
+        dff = np.load(processed_folder + dff_filename)
+
+        # "RESPONSE": RIGHT = 2, LEFT = 1: hence ipsi and contra need to be assigned accordingly:
+        fiber_options = np.array(['left', 'right'])  # left = (0+1) = 1; right = (1+1) == 2
+        contra_fiber_side_numeric = (np.where(fiber_options != session_data.fiber_side)[0] + 1)[
+                    0]  # if fiber on right contra = 1, if fiber on left contra = 2
+        ipsi_fiber_side_numeric = (np.where(fiber_options == session_data.fiber_side)[0] + 1)[0]
+
+        # Return cue OFF trials:
+        params = {'state_type_of_interest': 8,  # 8 = wait for side port out
+                  'outcome': 2,  # 2 = doesn't matter for choice aligned data
+                  # 'last_outcome': 0,  # NOT USED CURRENTLY
+                  'no_repeats': 1,
+                  'last_response': 0,  # doesnt matter for choice aligned data
+                  'align_to': 'Time end',
+                  'instance': -1,  # last instance
+                  'plot_range': [-6, 6],
+                  'first_choice_correct': 2,
+                  'SOR': 4,
+                  # 0 = NonSOR, 1 = SOR, 2 = doesn't matter = trial_data, 3 = return cue trials, 4 = return cue OFF trials (no return cue)
+                  'psycho': 0,
+                  'LRO': 0,
+                  'LargeRewards': 0,
+                  'Omissions': 0,
+                  'Silence': 0,  # 1 = Silent trials only
+                  'cue': None}
+
+        curr_run = 'SOR return movement aligned, cue OFF'
+        self.ipsi_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)  # in a contra trial, the return is ipsi
+        self.contra_data = ZScoredTraces(trial_data, dff, params, ipsi_fiber_side_numeric, ipsi_fiber_side_numeric, curr_run) # in an ipsi trial, the return is contra
+
 
 class SORRewardAlignedData(object):
     def __init__(self, session_data, save_traces=True):
@@ -558,7 +747,7 @@ class SORRewardAlignedData(object):
                   'instance': -1,
                   'plot_range': [-6, 6],
                   'first_choice_correct': 1,
-                  'SOR': 1,
+                  'SOR': 1, # 0 = NonSOR, 1 = SOR, 2 = doesn't matter = trial_data, 3 = return cue trials
                   'psycho': 0,
                   'LRO': 0,
                   'LargeRewards': 0,
@@ -818,7 +1007,7 @@ def get_outcome_time(trial_data, events_of_int): # returns the time of the outco
         trial_num = trial_numbers[event_trial_num]
         other_trial_events = trial_data.loc[(trial_data['Trial num'] == trial_num)]
         choices = other_trial_events.loc[(other_trial_events['State type'] == 5)] # 5 is the state type for choices / wait for response
-        max_times_in_state_choices = choices['Max times in state'].unique() # all values in max times in state available for this trial an state type
+        max_times_in_state_choices = choices['Max times in state'].unique() # all values in max times in state available for this trial and state type
         choice = choices.loc[(choices['Instance in state'] == max_times_in_state_choices)] # last time wait for response
         outcome_times.append(choice['Time end'].values[0])
     return outcome_times
@@ -843,6 +1032,9 @@ def find_and_z_score_traces(trial_data, dff, params, curr_run, norm_window=8, so
     # 10 = omission
     # 12 = large reward "LeftLargeReward
     # 13 = large reward "RightLargeReward"
+    # SOR params.state numbers:
+    # 9 = ReturnCueDelay
+    # 10 = ReturnCuePlay
 
 
     print('total nr trials: ' + str(len(trial_data['Trial num'].unique())) + ' for ' + curr_run)
@@ -852,10 +1044,17 @@ def find_and_z_score_traces(trial_data, dff, params, curr_run, norm_window=8, so
     # --------------
     if params.SOR == 0:
         events_of_int = getNonSORtrials(trial_data)
+        print('     > total SOR = 0 nr trials: ' + str(len( events_of_int['Trial num'].unique())) + ' for ' + curr_run)
     elif params.SOR == 1:
         events_of_int = getSORtrials(trial_data)
     elif params.SOR == 2:
         events_of_int = trial_data
+    elif params.SOR == 3:
+        events_of_int = getReturnCueTrials(trial_data)
+    elif params.SOR == 4:
+        events_of_int = getNoReturnCueTrials(trial_data)
+
+
 
     curr_nr_trials = events_of_int.shape[0]
 
@@ -1057,7 +1256,7 @@ def find_and_z_score_traces(trial_data, dff, params, curr_run, norm_window=8, so
                                                              post_window=norm_window)
             norm_traces = stats.zscore(event_photo_traces.T, axis=0)
 
-            singe_event = False
+            single_event = False
             if other_event.size == 1:
                 print('Only one event for ' + title + ' so no sorting')
                 sort = False

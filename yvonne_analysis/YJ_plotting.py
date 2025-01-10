@@ -121,6 +121,10 @@ def plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_met
             color_mean = '#e377c2'
             color_sem = '#e377c2'
             alpha = 0.5
+        elif y_label == 'Return':
+            color_mean = 'blue'
+            color_sem = 'blue'
+            alpha = 0.5
         else:
             color_mean = '#3F888F'
             color_sem = '#7FB5B5'
@@ -213,9 +217,9 @@ def plot_one_side(one_side_data, fig, ax1, ax2, y_range, hm_range, error_bar_met
 def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=False, x_range=[-2, 3], white_dot='default'):
 
     if SessionData.protocol == 'SOR' and SessionData.fiber_side == 'right':
-        rows = 3 #6
+        rows = 4 #6
         columns = 6
-        height = 8.25 # * 2
+        height = 8.25 *4/3  # * 2
         width = 10 * 1.5
     else:
         rows = 3
@@ -400,13 +404,324 @@ def heat_map_and_mean_SingleSession(SessionData, error_bar_method='sem', sort=Fa
                 legend_text.append('incorrect')
                 axs[row, 0].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
 
+            if alignement == 'cue':
+                legend_text = []
+
+                cue_contra_return, legend = add_plot_one_side(SessionData.SOR_return_cueON.contra_data, fig, axs[row, 0],
+                                                         axs[row, 1], y_range, hm_range,
+                                                         error_bar_method=error_bar_method, sel_color='#9467bd')
+                legend_text.append('contra return, cue ON')
+                cue_ipsi_return, legend = add_plot_one_side(SessionData.SOR_return_cueON.ipsi_data, fig, axs[row, 0],
+                                                         axs[row, 1], y_range, hm_range,
+                                                         error_bar_method=error_bar_method, sel_color='blue')
+                legend_text.append('ipsi return, cue ON ')
+                axs[row, 0].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
+
+
 
             contra_heatmap = plot_one_side(aligned_data.contra_data, fig, axs[row, 0], axs[row, 1], y_range, hm_range,
                                            error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
                                            y_label='SOR Contra ', top_label=alignement)
 
 
+        # add return movement in row 4 for return cue on or off, for ipsi and contra returns
+
+        SessionData.SOR_return_cueON.contra_data.params.plot_range = x_range
+        SessionData.SOR_return_cueON.ipsi_data.params.plot_range = x_range
+        # 1) return movement, aligned to side port out, contra movement, cue on & off
+        legend_text = []
+        return_cue_on_contra, legend = add_plot_one_side(SessionData.SOR_return_cueOFF.contra_data, fig, axs[3, 0],
+                                                         axs[3, 1], y_range, hm_range,
+                                                         error_bar_method=error_bar_method, sel_color='cyan')
+        legend_text.append('contra, cue OFF')
+        return_cue_off_contra = plot_one_side(SessionData.SOR_return_cueON.contra_data, fig, axs[3, 0], axs[3, 1], y_range, hm_range,
+                                       error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
+                                       y_label='Return', top_label='return movement')
+        legend_text.append('contra, cue ON')
+        axs[3, 0].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
+
+        # 2) return movement, aligned to side port out, ipsi movement, cue on and off
+        legend_text = []
+        return_cue_on_ipsi, legend = add_plot_one_side(SessionData.SOR_return_cueOFF.ipsi_data, fig, axs[3, 2],
+                                                         axs[3, 3], y_range, hm_range,
+                                                         error_bar_method=error_bar_method, sel_color='cyan')
+        legend_text.append('ipsi, cue OFF ')
+        return_cue_off_ipsi = plot_one_side(SessionData.SOR_return_cueON.ipsi_data, fig, axs[3, 2], axs[3, 3], y_range, hm_range,
+                                       error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
+                                       y_label='Return', top_label='return movement')
+        legend_text.append('ipsi, cue ON')
+        axs[3, 2].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
+
+
+
+
     return fig
+
+
+
+def heat_map_and_mean_SingleSessionInCorr(SessionData, error_bar_method='sem', sort=False, x_range=[-2, 3], white_dot='default'):
+
+    if SessionData.protocol == 'SOR' and SessionData.fiber_side == 'right':
+        rows = 3 #6
+        columns = 6
+        height = 8.25 # * 2
+        width = 10 * 1.5
+    else:
+        rows = 3
+        columns = 4
+        width = 10
+        height = 8.25
+
+    fig, axs = plt.subplots(nrows=rows, ncols=columns, figsize=(width, height))  # width, height
+    #fig, axs = plt.subplots(nrows=rows, ncols=4, figsize=(11, height)) # width, height
+    fig.tight_layout(pad=4)
+    #fig.tight_layout(pad=2.1, rect=[0,0,0.05,0])  # 2.1)
+    font = {'size': 10}
+
+    # neu:
+
+    plt.rc('font', family='Arial', size=12)
+    plt.rcParams.update({'font.size': 12})
+    x_range = x_range
+
+    alignements = ['cue', 'movement', 'reward']
+
+    # ----------------------------------------------------------------
+    # getting min and max value across all data to be plotted:
+    y_minmax = []
+    hm_minmax = []
+    for alignement in alignements:
+        if alignement == 'cue':
+            aligned_data = SessionData.cue
+        elif alignement == 'movement':
+            aligned_data = SessionData.choice
+        elif alignement == 'reward':
+            aligned_data = SessionData.reward
+
+        if aligned_data.contra_data.mean_trace.shape[0] == 0 or aligned_data.ipsi_data.mean_trace.shape[0] == 0:
+            print('no data for ' + alignement)
+            continue
+
+        aligned_data.ipsi_data.params.plot_range = x_range
+        aligned_data.contra_data.params.plot_range = x_range
+
+        y_minmax.append(np.min(aligned_data.ipsi_data.mean_trace))
+        y_minmax.append(np.max(aligned_data.ipsi_data.mean_trace))
+        y_minmax.append(np.min(aligned_data.contra_data.mean_trace))
+        y_minmax.append(np.max(aligned_data.contra_data.mean_trace))
+        if alignement == 'movement':
+            if aligned_data.contra_data.correct.mean_trace.shape[0] == 0 or aligned_data.contra_data.incorrect.mean_trace.shape[0] == 0:
+                print('no data for ' + alignement)
+                continue
+            y_minmax.append(np.min(aligned_data.contra_data.correct.mean_trace))
+            y_minmax.append(np.max(aligned_data.contra_data.correct.mean_trace))
+            y_minmax.append(np.min(aligned_data.contra_data.incorrect.mean_trace))
+            y_minmax.append(np.max(aligned_data.contra_data.incorrect.mean_trace))
+
+        if data.protocol == 'LRO' or data.protocol == 'LargeRewards':
+            y_minmax.append(np.max(SessionData.reward.contra_data_LR.mean_trace))
+            y_minmax.append(np.min(SessionData.reward.contra_data_LR.mean_trace))
+        if data.protocol == 'LRO' or data.protocol == 'Omissions':
+            y_minmax.append(np.min(SessionData.reward.contra_data_O.mean_trace))
+            y_minmax.append(np.min(SessionData.reward.ipsi_data_O.mean_trace))
+
+        if SessionData.reward.contra_data_incorrect.mean_trace.shape[0] is not 0:
+            y_minmax.append(np.max(SessionData.reward.contra_data_incorrect.mean_trace)) # activate again
+            y_minmax.append(np.min(SessionData.reward.contra_data_incorrect.mean_trace))  # activate again
+        #y_minmax.append(np.max(SessionData.reward.ipsi_data_incorrect.mean_trace))
+        #y_minmax.append(np.min(SessionData.reward.ipsi_data_incorrect.mean_trace))
+
+
+        hm_minmax.append(np.min(aligned_data.ipsi_data.sorted_traces))
+        hm_minmax.append(np.max(aligned_data.ipsi_data.sorted_traces))
+        hm_minmax.append(np.min(aligned_data.contra_data.sorted_traces))
+        hm_minmax.append(np.max(aligned_data.contra_data.sorted_traces))
+
+    ylim_max = math.ceil(max(y_minmax))
+    ylim_min = math.floor(min(y_minmax))
+    y_range = (ylim_min, ylim_max)
+    hm_max = max(hm_minmax)
+    hm_min = min(hm_minmax)
+    hm_range = (hm_min, hm_max)
+    # print('total heatmap range: ' + str(hm_range))
+
+    # ----------------------------------------------------------------
+    # Plotting
+    for alignement in alignements:
+        if alignement == 'cue':
+            aligned_data = SessionData.cue
+            row = 0
+        elif alignement == 'movement':
+            aligned_data = SessionData.choice
+            row = 1
+        elif alignement == 'reward':
+            aligned_data = SessionData.reward
+            row = 2
+
+        if aligned_data.contra_data.mean_trace.shape[0] == 0 or aligned_data.ipsi_data.mean_trace.shape[0] == 0:
+            continue
+
+        c_column = 0 # contra column for 2AC
+        i_column = 2 # ipsi column for 2AC
+        if SessionData.protocol == 'SOR' and SessionData.fiber_side == 'right':
+            c_column = 2 # contra column for 2AC if SOR plots on the left
+            i_column = 4 # ipsi column for 2AC if SOR plots on the left
+
+        aligned_data.ipsi_data.params.plot_range = x_range
+        aligned_data.contra_data.params.plot_range = x_range
+
+        legend_text = []
+
+        if alignement == 'reward':
+            add_incorrect = True
+            legend_text = []
+            if data.protocol == 'LRO' or data.protocol == 'LargeRewards':
+
+                print('LR trials: ' + str(SessionData.reward.contra_data_LR.sorted_traces.shape))
+                #contra_LRO_traces, legend = add_plot_one_side(SessionData.reward.contra_data_LR, fig, axs[row, c_column], axs[row, c_column + 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#e377c2')
+                ipsi_LRO_traces, legend = add_plot_one_side(SessionData.reward.ipsi_data_LR, fig, axs[row, i_column], axs[row, i_column +1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#e377c2')
+                if SessionData.reward.contra_data_LR.mean_trace.shape[0] != 0:
+                    #legend_text.append('LR')
+                    print('LR available')
+                add_incorrect = False
+
+            if data.protocol == 'LRO' or data.protocol == 'Omissions':
+                contra_LRO_traces, legend = add_plot_one_side(SessionData.reward.contra_data_O, fig, axs[row, c_column], axs[row, c_column + 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#9467bd')
+                ipsi_LRO_traces, legend = add_plot_one_side(SessionData.reward.ipsi_data_O, fig, axs[row, i_column], axs[row, i_column +1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#9467bd')
+                add_incorrect = False
+                if SessionData.reward.contra_data_O.mean_trace.shape[0] != 0:
+                    legend_text.append('O')
+                    print('O available')
+
+            add_incorrect_legend = False
+
+            if add_incorrect:
+                if SessionData.reward.contra_data_incorrect.mean_trace.shape[0] != 0:
+                    contra_incorrect, legend = add_plot_one_side(SessionData.reward.contra_data_incorrect, fig, axs[row, c_column], axs[row, c_column + 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#DC143C')
+                    add_incorrect_legend = True
+                else:
+                    print('no SessionData.reward.contra_data_incorrect.mean_trace trials to plot' + str(SessionData.reward.contra_data_incorrect.mean_trace.shape))
+
+                if SessionData.reward.ipsi_data_incorrect.mean_trace.shape[0] != 0:
+                    ipsi_incorrect, legend = add_plot_one_side(SessionData.reward.ipsi_data_incorrect, fig, axs[row, i_column], axs[row, i_column + 1], y_range, hm_range, error_bar_method=error_bar_method, sel_color = '#DC143C')
+                    add_incorrect_legend = True
+                else:
+                    print('no SessionData.reward.ipsi_data_incorrect.mean_trace trials to plot' + str(SessionData.reward.ipsi_data_incorrect.mean_trace.shape))
+
+                if add_incorrect_legend:
+                    legend_text.append('incorrect')
+
+
+
+        if alignement == 'movement':
+            if SessionData.choice.contra_data.correct.mean_trace.shape[0] != 0:
+                contra_correct_traces, legend = add_plot_one_side(SessionData.choice.contra_data.correct, fig, axs[row, c_column],
+                                                          axs[row, c_column + 1], y_range, hm_range,
+                                                          error_bar_method=error_bar_method, sel_color='green')
+                nr_corr_trials = SessionData.choice.contra_data.correct.sorted_traces.shape[0]
+                legend_text.append('correct (n = ' + str(nr_corr_trials) + ')')
+
+            if SessionData.choice.contra_data.incorrect.mean_trace.shape[0] != 0:
+                contra_incorrect_traces, legend = add_plot_one_side(SessionData.choice.contra_data.incorrect, fig, axs[row, c_column],
+                                                                axs[row, c_column + 1], y_range, hm_range,
+                                                                error_bar_method=error_bar_method, sel_color='#DC143C')
+                nr_incorr_trials = SessionData.choice.contra_data.incorrect.sorted_traces.shape[0]
+                legend_text.append('incorrect (n = ' + str(nr_incorr_trials) + ')')
+
+
+
+        contra_heatmap = plot_one_side(aligned_data.contra_data, fig, axs[row, c_column], axs[row, c_column +1], y_range, hm_range,   # axs[row, 0], axs[row, 1]
+                                       error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
+                                       y_label='Contra ', top_label=alignement)
+
+
+        print('contra trials for ' + alignement + ' n = ' + str(aligned_data.contra_data.sorted_traces.shape))
+
+        if aligned_data.contra_data.sorted_traces.shape[0] == 0:
+            legend_text.append('no trials available')
+            print('no trials available for ' + alignement)
+        elif alignement == 'movement':
+            legend_text.append('merge')
+        elif alignement == 'reward':
+            legend_text.append('')
+
+
+
+
+        ipsi_heatmap = plot_one_side(aligned_data.ipsi_data, fig, axs[row, i_column], axs[row, i_column + 1], y_range, hm_range,   #axs[row, 2], axs[row, 3]
+                                     error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
+                                     y_label='Ipsi ', top_label='')
+
+        axs[row, c_column].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
+
+
+
+        text = SessionData.mouse + '_' + SessionData.date + '_' + SessionData.recording_site + '_' + \
+               SessionData.fiber_side + ', protocol: ' + SessionData.protocol + SessionData.protocol_info + ', performance: ' + str("%.2f" % SessionData.performance) + '% in n = ' + str("%.0f" % SessionData.nr_trials) + ' trials'
+
+        axs[0, 0].text(x_range[0]-2.8, y_range[1]+0.5, text, fontsize=12)
+
+    if SessionData.protocol == 'SOR' and SessionData.fiber_side == 'right':
+        for alignement in alignements:
+            if alignement == 'cue':
+                aligned_data = SessionData.SOR_cue
+                row = 0 #3
+            elif alignement == 'movement':
+                aligned_data = SessionData.SOR_choice
+                row = 1 # 4
+            elif alignement == 'reward':
+                aligned_data = SessionData.SOR_reward
+                row = 2 # 5
+
+            aligned_data.contra_data.params.plot_range = x_range
+
+
+            legend_text = []
+
+            if alignement == 'movement':
+
+                color_mean = '#e377c2'
+                color_sem = '#e377c2'
+                alpha = 0.3
+
+                if SessionData.SOR_choice.contra_data.correct.mean_trace.shape[0] != 0:
+                    contra_correct, legend = add_plot_one_side(SessionData.SOR_choice.contra_data.correct, fig, axs[row, 0],
+                                                             axs[row, 1], y_range, hm_range,
+                                                             error_bar_method=error_bar_method, sel_color='green')
+                    legend_text.append('correct (n= ' + str(SessionData.SOR_choice.contra_data.correct.sorted_traces.shape[0]) + ')')
+
+                elif SessionData.SOR_choice.contra_data.correct.mean_trace.shape[0] == 0:
+                    print('no data for SOR_choice correct trials')
+
+
+                # incorrect SOR trials do not exist as there was never any SOR return cue indicating an upcoming ipsi trial
+                if SessionData.SOR_choice.contra_data.incorrect.mean_trace.shape[0] != 0:
+                    contra_incorrect, legend = add_plot_one_side(SessionData.SOR_choice.contra_data.incorrect, fig, axs[row, 0],
+                                                             axs[row, 1], y_range, hm_range,
+                                                             error_bar_method=error_bar_method, sel_color='#DC143C')
+                    legend_text.append('incorrect (n= ' + str(SessionData.SOR_choice.contra_data.incorrect.sorted_traces.shape[0]) + ')')
+                #elif SessionData.SOR_choice.contra_data.incorrect.mean_trace.shape[0] == 0:
+                 #   print('no data for SOR_choice incorrect trials')
+
+
+
+            contra_heatmap = plot_one_side(aligned_data.contra_data, fig, axs[row, 0], axs[row, 1], y_range, hm_range,
+                                   error_bar_method=error_bar_method, sort=sort, white_dot=white_dot,
+                                   y_label='SOR Contra ', top_label=alignement)
+
+            if alignement == 'movement':
+                legend_text.append('merge')
+                axs[row, 0].legend(legend_text, loc='upper right', fontsize=8, frameon=False)
+
+
+    return fig
+
+
+
+
+
+
+
 
 
 def heat_map_and_mean_SingleSession_ExtraSession(Session_data, Extra_trial_data, Extra_df, extra_session, error_bar_method='sem', sort=True, x_range=[-2, 3], white_dot='default'):
@@ -548,14 +863,22 @@ def CueResponses_DMS_vs_TS(all_experiments, mice, locations, main_directory, err
 # function by YJ to analyse a single session of a single mouse
 
 if __name__ == '__main__':
-    mice = ['TS21'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
-    dates = ['20230510'] # ['20230922'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
+    mice = ['TS32'] #,'T5','T6','T8'] #,'TS20']['TS20','TS21'] #
+    dates = ['20231026'] # ['20230922'] #['20230904'] #,'20230513']['20230513','20230514'] #'20230728','20230731','20230802','20230808','20230809'
+
+        #mice = ['TS3', 'TS20', 'TS21', 'TS26', 'TS33']  # 'TS29_20230927', TS34_20231102
+        #dates = ['20230203', '20230512', '20230510', '20230929', '20231106']
+
+    # SOR
+    #mice = ['TS24', 'TS26', 'TS27', 'TS32', 'TS33', 'TS34']
+    #dates = ['20230929', '20230918', '20231003', '20231026', '20231102', '20231031']
+
     recording_site = 'TS'
     fiber_side = 'right'
     exclude_protocols = ['psychometric','LRO']
 
     # --------------------------------------
-    plot = 1 # 1: SingleSession, 2: Random_Tone_Clouds, 3: CueResponses_DMS_vs_TS, 4: TimeSeries, 5: Random_WN, 6: Airpuff
+    plot = 1 # 1: SingleSession, 2: Random_Tone_Clouds, 3: CueResponses_DMS_vs_TS, 4: TimeSeries, 5: Random_WN, 6: Airpuff; 7= 'SingleSession_In_Corr'; 8 = cue aligned all trials
     # --------------------------------------
 
     all_experiments = get_all_experimental_records()
@@ -811,3 +1134,60 @@ if __name__ == '__main__':
                     pdf.savefig(figure, transparent=True, bbox_inches="tight", dpi=600)
 
                 plt.show()
+
+    if plot == 7:  # 'SingleSession_In_Corr':
+        print('SingleSession_In_Corr')
+        for mouse in mice:
+            for date in dates:
+                experiment = all_experiments[
+                    (all_experiments['date'] == date) & (all_experiments['mouse_id'] == mouse)]
+                print('   > Now analysing:' + mouse + ' ' + date)
+                fiber_side = experiment['fiber_side'].values[0]
+                recording_site = experiment['recording_site'].values[0]
+                data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)
+                text = mouse + '_' + date + '_' + recording_site + '_' + fiber_side + '_' + data.protocol
+                figure = heat_map_and_mean_SingleSessionInCorr(data, error_bar_method='sem', sort=True, x_range=[-2, 3],
+                                                         white_dot='default')
+
+                plt.savefig(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '_InCorr.pdf',
+                            transparent=True, dpi=300)
+                # with PdfPages(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '.pdf') as pdf:
+                #   pdf.savefig(figure, transparent=True, bbox_inches="tight", dpi=600)
+
+                plt.show()
+
+    if plot == 8:  # 'Novelty signal?':
+        print('FirstSoundSession')
+
+        # first session of each mouse with sound after habituation:
+        #mice = ['TS24', 'TS30', 'TS31', 'TS32', 'TS33', 'TS34']
+        #dates = ['20230914', '20231004', '20231004', '20231026', '20231026', '20231026']
+
+        mice = ['TS30', 'TS31', 'TS32', 'TS33', 'TS34']
+        dates = ['20231004', '20231004', '20231026', '20231026', '20231026']
+
+        for a, mouse in enumerate(mice):
+
+            date = dates[a]
+            experiment = all_experiments[
+                    (all_experiments['date'] == date) & (all_experiments['mouse_id'] == mouse)]
+            print('   > Now analysing:' + mouse + ' ' + date)
+            fiber_side = experiment['fiber_side'].values[0]
+            recording_site = experiment['recording_site'].values[0]
+            data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)
+            text = mouse + '_' + date + '_' + recording_site + '_' + fiber_side + '_' + data.protocol
+            figure = heat_map_and_mean_SingleSession(data, error_bar_method='sem', sort=True, x_range=[-2, 3],
+                                                         white_dot='default')
+
+
+                # Getting the type of session from the matlab file: works e.g. in jupyter
+                # d = loadmat(main_session_file)
+                # d['SessionData']['TrialSettings'][0].GUI.TrainingLevel
+                # Result is coded in numbers according to:
+                #           1 = 'Habituation'   2=  'Visual'  3=  'Auditory'  4=  'Aud_Psycho'  5=  'Inter_Freqs_Aud_Psycho' in SessionData.TrialSettings.GUIMeta.TrainingLevel.String
+
+
+
+            plt.savefig(main_directory + 'YJ_results\\' + mouse + '\\' + 'Session_' + text + '_Novelty.pdf',
+                            transparent=True, dpi=300)
+            plt.show()

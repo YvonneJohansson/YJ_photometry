@@ -55,6 +55,7 @@ def _todict(matobj):
 def pre_process_experiment_lerner_deissroth(mouse, date, protocol, folder_path, saving_folder_path):
     daq_file = find_daq_file(mouse, date, folder_path, protocol)
     data = nptdms.TdmsFile(daq_file)
+
     sampling_rate = 10000
 
     main_session_file = find_bpod_file(mouse, date, protocol, folder_path, saving_folder_path)
@@ -298,7 +299,7 @@ def restructure_bpod_timestamps_random_tone_clouds(loaded_bpod_file, trial_start
         num_states = (len(trial_states))
         sound_types = {'COT': 0, 'NA': 1, 'WN':2}
          # need to silence sound type YJ for analysing TS5, 230921; FG didn't use sound types in the past
-        state_info['Sound type'] = np.ones((num_states)) * sound_types[loaded_bpod_file['SessionData']['SoundType'][trial]]
+        #state_info['Sound type'] = np.ones((num_states)) * sound_types[loaded_bpod_file['SessionData']['SoundType'][trial]]
         state_info['Trial num'] = np.ones((num_states)) * trial
         state_info['Trial type'] = np.ones((num_states)) * loaded_bpod_file['SessionData']['TrialSequence'][trial]
         state_info['State type'] = trial_states
@@ -320,7 +321,10 @@ def restructure_bpod_timestamps_random_tone_clouds(loaded_bpod_file, trial_start
             restructured_data = trial_data
         else:
             restructured_data = pd.concat([restructured_data, trial_data], ignore_index=True)
+
+
         if event_info != {} and event_info['Time start'][0].size != 0 and event_info['Time end'][0].size != 0:
+            print('here')
             event_data = pd.DataFrame(event_info)
             restructured_data = pd.concat([restructured_data, event_data], ignore_index=True)
     return restructured_data
