@@ -340,7 +340,6 @@ class SessionData(object):
                     print(
                         'Processing session: ' + self.mouse + '_' + self.date + '_' + self.fiber_side + '_' + self.recording_site + '_SOR:')
 
-
                 self.SOR_choice = SORChoiceAlignedData(self, save_traces=True)
                 if debug == True:
                     print('SOR cue')
@@ -590,8 +589,9 @@ class SORChoiceAlignedData(object):
             'Silence': 0,  # 1 = Silent trials only
             'cue': None}
 
-        curr_run = 'SOR choice aligned'
+        curr_run = 'SOR CHOICE aligned'
         self.contra_data = ZScoredTraces(trial_data, dff, params, contra_fiber_side_numeric, contra_fiber_side_numeric, curr_run)
+        #print(curr_run + ' trials: ' + str(self.contra_data.sorted_traces.shape))
         self.contra_data.get_peaks(save_traces=save_traces)
 
         # NatureRevisions add correct and incorrect trials separately:
@@ -1037,7 +1037,7 @@ def find_and_z_score_traces(trial_data, dff, params, curr_run, norm_window=8, so
     # 10 = ReturnCuePlay
 
 
-    print('total nr trials: ' + str(len(trial_data['Trial num'].unique())) + ' for ' + curr_run)
+    print('    total nr trials: ' + str(len(trial_data['Trial num'].unique())) + ' for ' + curr_run)
 
     if params.state == 5.5:
         print('ERROR: code (find_and_z_score_traces) not adjusted for state 5.5!!! Either first incorrect choice or xxx')
@@ -1047,6 +1047,7 @@ def find_and_z_score_traces(trial_data, dff, params, curr_run, norm_window=8, so
         print('     > total SOR = 0 nr trials: ' + str(len( events_of_int['Trial num'].unique())) + ' for ' + curr_run)
     elif params.SOR == 1:
         events_of_int = getSORtrials(trial_data)
+        print('getSORtrials: ' + str(events_of_int.shape[0]))
     elif params.SOR == 2:
         events_of_int = trial_data
     elif params.SOR == 3:

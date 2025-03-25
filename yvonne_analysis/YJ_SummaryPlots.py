@@ -8,6 +8,8 @@ from scipy.stats import f_oneway
 from scipy.stats import levene
 from scipy.stats import shapiro
 from scipy.stats import kruskal
+from scipy.stats import ttest_rel
+from scipy.stats import ttest_1samp
 plt.rcParams["pdf.fonttype"] = 42
 plt.rcParams["ps.fonttype"] = 42
 # If you’re exporting text, you need to make sure matplotlib is exporting editable text, otherwise Illustrator will treat every single character as a shape instead of text. By default matplotlib exports “Type 3 fonts” which Adobe Illustrator doesn’t understand, so you need to change matplotlib to export Type 2/TrueType fonts.
@@ -18,7 +20,7 @@ if __name__ == '__main__':
 
     main_directory = 'Z:\\users\\Yvonne\\photometry_2AC\\'
     all_experiments = get_all_experimental_records()
-    #plot = 'RTC_group_plot'
+    #plot = 'RTC_group_plot'     # CORRECT FOR PAPER
     #plot = 'SOR_group_plot'
     plot = 'SOR_group_plot_return'
     #plot = 'APE_group_plot'
@@ -186,10 +188,40 @@ if __name__ == '__main__':
         # effect size:
         cohen_d_paired(APE_peak_values, RTC_peak_values)
 
-        #effect_size = (np.mean(APE_peak_values) - np.mean(RTC_peak_values)) / np.sqrt((np.std(APE_peak_values) ** 2 + np.std(RTC_peak_values) ** 2) / 2)
-        #print('Effect size: ' + str(effect_size) + ' (pooled STD)')
-        #effect_size = (np.mean(APE_peak_values) - np.mean(RTC_peak_values)) / np.std(APE_peak_values)
-        #print('Effect size: ' + str(effect_size) + ' (movement STD)')
+        # calculate p-value:
+
+        # Shapiro-Wilk test for normality
+        stat, p1 = shapiro(APE_peak_values)
+        print('Shapiro-Wilk test for normality APE peak values: Statistics=%.3f, p=%.3f' % (stat, p1)) # p > 0.05, normal distribution
+        stat, p2 = shapiro(RTC_peak_values)
+        print('Shapiro-Wilk test for normality RTC peak values: Statistics=%.3f, p=%.3f' % (stat, p2)) # p > 0.05, normal distribution
+
+        if p1 > 0.05 and p2 > 0.05:
+            # Paired t-test
+            stat, p = ttest_rel(APE_peak_values, RTC_peak_values)
+            print('Paired t-test for normally distributed data: Statistics=%.3f, p=%.4f' % (stat, p))  # p < 0.05, reject null hypothesis, significant difference between groups
+        else:
+            # Kruskal-Wallis H-test
+            stat, p = kruskal(APE_peak_values, RTC_peak_values)
+            print('Kruskal-Wallis H-test: Statistics=%.3f, p=%.3f' % (stat, p))  # p < 0.05, reject null hypothesis, significant difference between groups
+
+        # Test if the mean of the data is significantly different from 0
+        stat, p = ttest_1samp(APE_peak_values, popmean=0)
+        print("APE_peak_values different from 0? t-statistic:", stat, "p-value:", p)
+        stat, p = ttest_1samp(RTC_peak_values, popmean=0)
+        print("RTC_peak_values different from 0? t-statistic:", stat, "p-value:", p)
+
+        # Levene test for homogeneity of variances
+        #stat, p = levene(APE_peak_values, RTC_peak_values)
+        #print('Levene test for homogeneity of variances: Statistics=%.3f, p=%.3f' % (stat, p)) # p > 0.05, variances are equal
+
+
+
+
+
+
+
+
 
         for i in range(0,len(APE_peak_values)):
             x_val = [0,1]
@@ -574,6 +606,8 @@ if __name__ == '__main__':
         sem_peak_values = [np.std(APE_peak_values) / np.sqrt(len(APE_peak_values)),
                            np.std(RWN_peak_values) / np.sqrt(len(RWN_peak_values))]
 
+
+        # STATISTICS:
         # Effect size:
         # indpendent samples: effect_size = (np.mean(APE_peak_values) - np.mean(RWN_peak_values)) / np.sqrt((np.std(APE_peak_values) ** 2 + np.std(RWN_peak_values) ** 2) / 2)
         # print('Effect size: ' + str(effect_size) + ' (pooled STD)')
@@ -581,9 +615,32 @@ if __name__ == '__main__':
         cohen_d_paired(APE_peak_values, RWN_peak_values)
 
 
+        # calculate p-value:
 
-        #effect_size = (np.mean(APE_peak_values) - np.mean(RWN_peak_values)) / np.std(APE_peak_values)
-        #print('Effect size: ' + str(effect_size) + ' (movement STD)')
+        # Shapiro-Wilk test for normality
+        stat, p1 = shapiro(APE_peak_values)
+        print('Shapiro-Wilk test for normality APE peak values: Statistics=%.3f, p=%.3f' % (stat, p1)) # p > 0.05, normal distribution
+        stat, p2 = shapiro(RWN_peak_values)
+        print('Shapiro-Wilk test for normality RTC peak values: Statistics=%.3f, p=%.3f' % (stat, p2)) # p > 0.05, normal distribution
+
+
+        if p1 > 0.05 and p2 > 0.05:
+            # Paired t-test
+            stat, p = ttest_rel(APE_peak_values, RWN_peak_values)
+            print('Paired t-test for normally distributed data: Statistics=%.3f, p=%.5f' % (stat, p))  # p < 0.05, reject null hypothesis, significant difference between groups
+        else:
+            # Kruskal-Wallis H-test
+            stat, p = kruskal(APE_peak_values, RWN_peak_values)
+            print('Kruskal-Wallis H-test: Statistics=%.3f, p=%.3f' % (stat, p))  # p < 0.05, reject null hypothesis, significant difference between groups
+
+        # Test if the mean of the data is significantly different from 0
+        stat, p = ttest_1samp(APE_peak_values, popmean=0)
+        print("APE_peak_values different from 0? t-statistic:", stat, "p-value:", p)
+
+        stat, p = ttest_1samp(RWN_peak_values, popmean=0)
+        print("RWN_peak_values different from 0? t-statistic:", stat, "p-value:", p)
+
+
 
 
         for i in range(0, len(APE_peak_values)):
@@ -595,17 +652,17 @@ if __name__ == '__main__':
             ax.spines['right'].set_visible(False)
             # ax.set_xticks([0, 1], labels=["APE", "RTC"])
 
-        ax.plot(x_val, mean_peak_values, color='r', linewidth=1, marker='o', markersize=10)
-        ax.plot([0, 0], [mean_peak_values[0] + sem_peak_values[0], mean_peak_values[0] - sem_peak_values[0]], color='r',
-                linewidth=1)
-        ax.plot([1, 1], [mean_peak_values[1] + sem_peak_values[1], mean_peak_values[1] - sem_peak_values[1]], color='r',
-                linewidth=1)
+        #ax.plot(x_val, mean_peak_values, color='r', linewidth=1, marker='o', markersize=10)
+        #ax.plot([0, 0], [mean_peak_values[0] + sem_peak_values[0], mean_peak_values[0] - sem_peak_values[0]], color='r',
+        #       linewidth=1)
+        #ax.plot([1, 1], [mean_peak_values[1] + sem_peak_values[1], mean_peak_values[1] - sem_peak_values[1]], color='r',
+        #        linewidth=1)
 
         ax.set_xticks([0, 1])
         ax.set_ylabel('Z-scored dF/F')
         ax.set_xlim(-0.2, 1.2)
-        ax.set_ylim(-1,1)
-        ax.yaxis.set_ticks([-1, 0, 1])
+        ax.set_ylim(-0.5,1.5)
+        #ax.yaxis.set_ticks([-1, 0, 1])
         fig.tight_layout(pad=2)
         plt.savefig(main_directory + 'YJ_SummaryPlots\\' + 'APE_vs_RWN_group_plot_all_mice_dotplot.pdf', dpi=300,
                     transparent=True)
@@ -836,7 +893,7 @@ if __name__ == '__main__':
         #mice = ['TS32', 'TS33', 'TS34']
         #dates = ['20231026', '20231026', '20231026']
 
-        time_amplitude = 1 # 0.5    # seconds after cue onset
+        time_amplitude = 3 # 0.5    # seconds after cue onset
         x_range = [-2, 3]
         y_range = [-1, 2]
 
@@ -870,6 +927,8 @@ if __name__ == '__main__':
             data = get_SessionData(main_directory, mouse, date, fiber_side, recording_site)
             performances.append(data.performance)
 
+            print()
+
             alignements = ['SOR_choice', 'SOR_cue', 'SOR_reward', 'cue', 'choice', 'reward', 'SOR_return_cueON_contra',
                            'SOR_return_cueOFF_contra', 'SOR_return_cueON_ipsi', 'SOR_return_cueOFF_ipsi']
 
@@ -879,12 +938,15 @@ if __name__ == '__main__':
                     curr_data = data.SOR_cue.contra_data
                 elif alignement == 'SOR_choice':
                     curr_data = data.SOR_choice.contra_data
+
+
                 elif alignement == 'SOR_reward':
                     curr_data = data.SOR_reward.contra_data
                 elif alignement == 'cue':
                     curr_data = data.cue.contra_data
                 elif alignement == 'choice':
                     curr_data = data.choice.contra_data
+                    print('choice traces: ' + str(curr_data.sorted_traces.shape))
                 elif alignement == 'reward':
                     curr_data = data.reward.contra_data
                 elif alignement == 'SOR_return_cueON_contra':
@@ -917,6 +979,9 @@ if __name__ == '__main__':
 
                 # get the peak values:
                 if alignement == 'choice':
+                    print('choice traces:' + str(curr_data_traces.shape))
+
+
                     start_inx = 8000  # time 0
                     # SOR_choice_data_range = [start_inx:start_inx + 8000]
                     APE_choice_time_range = curr_data_time[start_inx:start_inx + 8000]
@@ -925,11 +990,11 @@ if __name__ == '__main__':
                     APE_choice_peak_value = curr_data_mean[start_inx + APE_choice_peak_index]
                     APE_choice_peak_values.append(APE_choice_peak_value)
                     # print(mouse + ' ' + date + ' ' + alignement + ' ' + str(SOR_choice_peak_value) + ' ' + str(SOR_choice_peak_time))
-
+                    print(APE_choice_peak_index)
 
                 # take amplitude X seconds after cue start
                 start_inx = 8000  # time 0
-                timepoint_index = (time_amplitude +0.02)* 1000 + start_inx       #8s before and after aligned time point (which is 0). +20ms for cue delay + desired time after conset (0.5s for ex)
+                #timepoint_index = (time_amplitude +0.02)* 1000 + start_inx       #8s before and after aligned time point (which is 0). +20ms for cue delay + desired time after conset (0.5s for ex)
                 #amplitude = curr_data_mean[int(timepoint_index)]
                 if alignement == 'SOR_return_cueON_contra' or alignement == 'SOR_return_cueOFF_contra' or alignement == 'SOR_return_cueON_ipsi' or alignement == 'SOR_return_cueOFF_ipsi':
                     amplitude = curr_data_mean[start_inx + APE_choice_peak_index]
@@ -949,20 +1014,19 @@ if __name__ == '__main__':
                 elif alignement == 'SOR_return_cueON_ipsi':
                     #print('>        ' + alignement + ' ' + str(amplitude) + ' ' + str(timepoint_index))
                     nr_return_trials_cue_on = nr_return_trials_cue_on + curr_data_traces.shape[0]
-                    nr_return_trials_cue_on = curr_data_traces.shape[0]
                     return_ipsi_cue_on_values.append(amplitude)
                 elif alignement == 'SOR_return_cueOFF_ipsi':
                     #print('>        ' + alignement + ' ' + str(amplitude) + ' ' + str(timepoint_index))
                     nr_return_trials_cue_off = nr_return_trials_cue_off + curr_data_traces.shape[0]
                     return_ipsi_cue_off_values.append(amplitude)
 
-            print('             > Return trials: ' + str(nr_return_trials_cue_on) + ' cue on, ' + str(nr_return_trials_cue_off) + ' cue off, ' + 'total cue on % : ' + str(nr_return_trials_cue_on / (nr_return_trials_cue_on + nr_return_trials_cue_off)))
-            percentage_cue_on.append(nr_return_trials_cue_on / (nr_return_trials_cue_on + nr_return_trials_cue_off))
+            #print('             > Return trials: ' + str(nr_return_trials_cue_on) + ' cue on, ' + str(nr_return_trials_cue_off) + ' cue off, ' + 'total cue on % : ' + str(nr_return_trials_cue_on / (nr_return_trials_cue_on + nr_return_trials_cue_off)))
+            #percentage_cue_on.append(nr_return_trials_cue_on / (nr_return_trials_cue_on + nr_return_trials_cue_off))
 
 
         # general info:
-        print('Performance: ' + str(np.mean(performances)) + ' +/- ' + str(np.std(performances) / np.sqrt(nr_mice)))
-        print('Return trials: ' + str(np.mean(percentage_cue_on)) + ' +/- ' + str(np.std(percentage_cue_on) / np.sqrt(nr_mice)))
+        #print('Performance: ' + str(np.mean(performances)) + ' +/- ' + str(np.std(performances) / np.sqrt(nr_mice)))
+        #print('Return trials: ' + str(np.mean(percentage_cue_on)) + ' +/- ' + str(np.std(percentage_cue_on) / np.sqrt(nr_mice)))
 
 
         fig1, ax1 = plt.subplots(4, 2, figsize=(6, 10*4/3))  # group average
@@ -1099,19 +1163,19 @@ if __name__ == '__main__':
         fig2.tight_layout(pad=2)
 
 
-        print('contra cue on')
-        print(return_contra_cue_on_values)
-        print('contra cue off')
-        print(return_contra_cue_off_values)
-        print('ipsi cue on')
-        print(return_ipsi_cue_on_values)
-        print('ipsi cue off')
-        print(return_ipsi_cue_off_values)
+        #print('contra cue on')
+        #print(return_contra_cue_on_values)
+        #print('contra cue off')
+        #print(return_contra_cue_off_values)
+        #print('ipsi cue on')
+        #print(return_ipsi_cue_on_values)
+        #print('ipsi cue off')
+        #print(return_ipsi_cue_off_values)
 
 
         # equal variances?
         stat, p = levene(return_contra_cue_on_values, return_contra_cue_off_values, return_ipsi_cue_on_values, return_ipsi_cue_off_values)
-        print(f"Levene's test p-value: {p}")
+        #print(f"Levene's test p-value: {p}")
         if p >= 0.05:  # Variances are equal --> one way ANOVA
             print('Levene test: Variances are equal, one way ANOVA appropriate')
         else:
@@ -1125,15 +1189,15 @@ if __name__ == '__main__':
             print(f"Shapiro-Wilk test p-value: {p}")
             print('Data is normally distributed, one way ANOVA appropriate')
         else:
-            print('Data is not normally distributed, Kruskal-Wallis test appropriate:')
+           # print('Data is not normally distributed, Kruskal-Wallis test appropriate:')
             stat, p = kruskal(return_contra_cue_on_values, return_contra_cue_off_values, return_ipsi_cue_on_values, return_ipsi_cue_off_values)
             print(f"Kruskal-Wallis test p-value: {p}")
 
 
         if p >= 0.05: # Variances are equal --> one way ANOVA
             F, p = f_oneway(return_contra_cue_on_values, return_contra_cue_off_values, return_ipsi_cue_on_values, return_ipsi_cue_off_values)
-            print(F)
-            print(p)
+            print('One way Anova, F: ' + str(F))
+            print('One way Anova, p: ' + str(p))
 
         plt.savefig(main_directory + 'YJ_SummaryPlots\\' + '2AC_vs_SOR_group_RETURN' + add + str(time_amplitude) + '_DP.pdf', dpi=300, transparent=True)
 
@@ -1219,9 +1283,9 @@ if __name__ == '__main__':
         dates = ['20230929', '20230918','20231003', '20231026','20231102','20231031']
         # performance: 55% +- 4%
 
-        add = '1stExposureCue'
-        mice = ['TS32', 'TS33', 'TS34']
-        dates = ['20231026', '20231026', '20231026']
+        #add = '1stExposureCue'
+        #mice = ['TS32', 'TS33', 'TS34']
+        #dates = ['20231026', '20231026', '20231026']
 
 
         x_range = [-2, 3]
@@ -1229,7 +1293,7 @@ if __name__ == '__main__':
 
         fig1, ax1 = plt.subplots(3, len(mice)*2, figsize=(6 * len(mice), 10)) # each mouse
 
-        all_group_data = {'SOR_cue':[], 'SOR_choice':[], 'SOR_reward':[], 'cue':[], 'choice':[], 'reward':[], 'SOR_i_return_cue':[], 'SOR_c_return_cue':[]}
+        all_group_data = {'SOR_cue':[], 'SOR_choice':[], 'SOR_reward':[], 'cue':[], 'choice':[], 'reward':[]}
         SOR_cue_peak_values = []
         SOR_choice_peak_values = []
         performances = []
@@ -1250,7 +1314,7 @@ if __name__ == '__main__':
 
             #print(vars(data))  # get all attributes of the data object
 
-            alignements = ['SOR_choice', 'SOR_cue', 'SOR_reward', 'cue', 'choice', 'reward', 'SOR_return_cueON', 'SOR_return_cueOFF']
+            alignements = ['SOR_choice', 'SOR_cue', 'SOR_reward', 'cue', 'choice', 'reward']
 
             for a, alignement in enumerate(alignements):
 
@@ -1266,10 +1330,12 @@ if __name__ == '__main__':
                     curr_data = data.choice
                 elif alignement == 'reward':
                     curr_data = data.reward
-                elif alignement == 'SOR_return_cueON':
-                    curr_data = data.SOR_return_cueON
-                elif alignement == 'SOR_return_cueOFF':
-                    curr_data = data.SOR_return_cueOFF
+               #elif alignement == 'SOR_return_cueON':
+                #    curr_data = data.SOR_return_cueON
+                #elif alignement == 'SOR_return_cueOFF':
+                 #   curr_data = data.SOR_return_cueOFF
+
+
 
 
                 curr_data_mean = decimate(curr_data.contra_data.mean_trace, 10)
@@ -1297,8 +1363,6 @@ if __name__ == '__main__':
                 elif alignement == 'SOR_cue':
                     SOR_cue_peak_value = curr_data_mean[start_inx + SOR_choice_peak_index]
                     SOR_cue_peak_values.append(SOR_cue_peak_value)
-
-
 
 
                 # plot single mouse:
@@ -1422,6 +1486,33 @@ if __name__ == '__main__':
         # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3444174/
         cohen_d_paired(SOR_choice_peak_values, SOR_cue_peak_values)
 
+        # calculate p-value:
+
+        # Shapiro-Wilk test for normality
+        stat, p1 = shapiro(SOR_choice_peak_values)
+        print('Shapiro-Wilk test for normality APE peak values: Statistics=%.3f, p=%.3f' % (
+        stat, p1))  # p > 0.05, normal distribution
+        stat, p2 = shapiro(SOR_cue_peak_values)
+        print('Shapiro-Wilk test for normality RTC peak values: Statistics=%.3f, p=%.3f' % (
+        stat, p2))  # p > 0.05, normal distribution
+
+        if p1 > 0.05 and p2 > 0.05:
+            # Paired t-test
+            stat, p = ttest_rel(SOR_choice_peak_values, SOR_cue_peak_values)
+            print('Paired t-test for normally distributed data: Statistics=%.3f, p=%.5f' % (
+            stat, p))  # p < 0.05, reject null hypothesis, significant difference between groups
+        else:
+            # Kruskal-Wallis H-test
+            stat, p = kruskal(SOR_choice_peak_values, SOR_cue_peak_values)
+            print('Kruskal-Wallis H-test: Statistics=%.3f, p=%.3f' % (
+            stat, p))  # p < 0.05, reject null hypothesis, significant difference between groups
+
+        # Test if the mean of the data is significantly different from 0
+        stat, p = ttest_1samp(SOR_cue_peak_values, popmean=0)
+        print("SOR_cue_peak_value different from 0? t-statistic:", stat, "p-value:", p)
+
+        stat, p = ttest_1samp(SOR_choice_peak_values, popmean=0)
+        print("SOR_choice_peak_value different from 0? t-statistic:", stat, "p-value:", p)
 
 
         for i in range(0, len(SOR_choice_peak_values)):

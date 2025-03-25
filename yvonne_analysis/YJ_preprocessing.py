@@ -7,15 +7,18 @@ if __name__ == "__main__":
     saving_folder_path = 'Z:\\users\\Yvonne\\photometry_2AC\\'
 
     #mouse_ids = ['SNL_photo21','SNL_photo22','SNL_photo23','SNL_photo24','SNL_photo25','SNL_photo26']
-    mouse_ids = ['TS30', 'TS31'] #TS21 TS18_30
+    mouse_ids = ['TS24'] #TS21 TS18_30
 
-    dates = ['20231003']
+    dates = ['20230929']
+
+    #mice = ['TS24', 'TS26', 'TS27', 'TS32', 'TS33', 'TS34']
+    #dates = ['20230929', '20230918', '20231003', '20231026', '20231102', '20231031']
 
 
-    force_protocol = 'Random_Tone_Clouds'
+    #force_protocol = 'Random_Tone_Clouds'
     #force_protocol = 'Random_WN'
     #force_protocol = 'Airpuff'
-    #force_protocol = ''
+    force_protocol = ''
 
 
 
